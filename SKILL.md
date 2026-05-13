@@ -56,30 +56,40 @@ OpenCOAT ships as three packages out of the monorepo at
 | `opencoat-runtime` | runtime core + daemon + `opencoat` CLI |
 | `opencoat-runtime-host` | host SDK (`Client`, `JoinpointEmitter`) + OpenClaw adapter |
 
-PyPI publication is pending; install straight from GitHub today. A
-throwaway venv (Python 3.12+) keeps the install isolated from the host
-agent's Python. Until PyPI lands, all three sibling packages must be
-named explicitly — pip resolves transitive deps from PyPI by default,
-so the protocol package has to be on disk before `opencoat-runtime`
-and `opencoat-runtime-host` can find it:
+Both packages are on PyPI. The recommended path is `pipx` — it puts
+the `opencoat` CLI on `PATH` without polluting the host agent's
+Python, and `pipx inject` adds the host SDK to the same isolated env
+so `opencoat demo`'s lazy imports succeed:
 
 ```bash
-python3 -m venv .opencoat/venv
-source .opencoat/venv/bin/activate
-
-REPO="git+https://github.com/HyperdustLabs/OpenCOAT.git"
-pip install \
-  "$REPO#subdirectory=packages/opencoat-runtime-protocol" \
-  "$REPO#subdirectory=packages/opencoat-runtime" \
-  "$REPO#subdirectory=packages/opencoat-runtime-host"
+pipx install opencoat-runtime
+pipx inject  opencoat-runtime opencoat-runtime-host
 
 opencoat --version    # → 0.1.x
 ```
 
-Once PyPI lands you'll be able to swap that block for
-`pipx install opencoat-runtime` + `pipx inject opencoat-runtime
-opencoat-runtime-host` (the protocol package comes along transitively).
-This skill will be re-tagged when that happens.
+`opencoat-runtime-protocol` comes along transitively — you don't need
+to name it. `pipx inject` is what wires `opencoat-runtime-host` into
+the CLI's env; if you skip it, `opencoat demo` will refuse to start
+with a `ModuleNotFoundError: opencoat_runtime_host_sdk`.
+
+### Step 1b (alternative) — install into a regular venv
+
+If your host agent is itself a Python project that wants to `import
+opencoat_runtime_host_sdk` from its own code (writing a custom host,
+embedding the runtime in-process, etc.), drop the pipx layer and use
+a plain venv:
+
+```bash
+python3 -m venv .opencoat/venv
+source .opencoat/venv/bin/activate
+pip install opencoat-runtime opencoat-runtime-host
+
+opencoat --version    # → 0.1.x
+```
+
+The CLI works identically; the difference is just *where* the SDK
+ends up on `sys.path`.
 
 ### Step 2 — start the daemon
 
@@ -326,15 +336,14 @@ This skill tracks `opencoat-runtime` major. Today:
 
 | component | min supported | source |
 | --- | --- | --- |
-| `opencoat-runtime` | `0.1.0` | `git+…#subdirectory=packages/opencoat-runtime` |
-| `opencoat-runtime-host` | `0.1.0` | `git+…#subdirectory=packages/opencoat-runtime-host` |
-| `opencoat-runtime-protocol` | `0.1.0` | pulled transitively |
+| `opencoat-runtime` | `0.1.0` | [PyPI](https://pypi.org/project/opencoat-runtime/) |
+| `opencoat-runtime-host` | `0.1.0` | [PyPI](https://pypi.org/project/opencoat-runtime-host/) |
+| `opencoat-runtime-protocol` | `0.1.0` | [PyPI](https://pypi.org/project/opencoat-runtime-protocol/) — pulled transitively |
 
-PyPI wheels are not published yet; this skill installs from `main` on
-purpose so the demo always runs against the most recent stable surface.
-When PyPI publication lands, the install lines flip to
-`pipx install opencoat-runtime` + `pipx inject opencoat-runtime
-opencoat-runtime-host` and the skill is re-tagged.
+Step 1 installs from PyPI via `pipx`; if you need to embed the runtime
+inside a Python application (so its code can `import
+opencoat_runtime_host_sdk`), Step 1b uses `pip install` into a regular
+venv. Both paths give the same CLI surface.
 
 ---
 
@@ -343,7 +352,9 @@ opencoat-runtime-host` and the skill is re-tagged.
 | symptom | likely fix |
 | --- | --- |
 | `opencoat runtime up` hangs | port 7878 in use → pass `--port 17890` (or another) and re-run `status` with the same flag |
-| `python demo_host.py` raises `ModuleNotFoundError: opencoat_runtime_host_sdk` | `pip install` of `opencoat-runtime-host` missing — see Step 1 |
+| `opencoat: command not found` | pipx env not on `PATH` → `pipx ensurepath` then reopen the shell, or fall back to Step 1b's venv |
+| `opencoat demo` raises `ModuleNotFoundError: opencoat_runtime_host_sdk` | `pipx inject opencoat-runtime opencoat-runtime-host` was skipped — re-run that command |
+| `opencoat concern extract` returns `0 candidate(s)` and the banner shows `llm: stub-fallback (degraded — …)` | no real LLM creds in env → `export OPENAI_API_KEY=...` (or `ANTHROPIC_API_KEY` / `AZURE_OPENAI_*`) and restart the daemon |
 | `Client.connect(…)` raises `HostTransportConnectionError` | daemon down or bound on another port; `opencoat runtime status` is the truth |
 | `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
 | `bootstrap_opencoat.install()` does nothing visible | host loop never calls `installed.apply_to(prompt_ctx)` / `installed.guard_tool_call(call)` — see Step 4b for the canonical loop and [concerns.md](concerns.md) for the cookbook |
