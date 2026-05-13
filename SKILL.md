@@ -24,7 +24,7 @@ This skill is the "5-minute install" that makes the runtime visible:
 3. import the 3 dramatic demo concerns,
 4. emit a few joinpoints and watch them light up activations,
 5. inspect the Deep Concern Network (DCN),
-6. tear down.
+6. leave the daemon running (it's long-lived by design — tear down only if you really want to).
 
 > Source repo: <https://github.com/HyperdustLabs/OpenCOAT>  
 > Skill repo:  <https://github.com/HyperdustLabs/opencoat-skill>  
@@ -79,7 +79,7 @@ Copy this checklist and walk through it top-to-bottom:
 - [ ] Step 4a: `opencoat demo` — see concerns change host behavior
 - [ ] Step 4b (optional): wire an OpenClaw host plugin
 - [ ] Step 5: inspect the DCN
-- [ ] Step 6: tear down
+- [ ] Step 6: leave the daemon running (optional teardown)
 ```
 
 ### Step 1 — install
@@ -128,21 +128,30 @@ opencoat --version    # → 0.1.x
 The CLI works identically; the difference is just *where* the SDK
 ends up on `sys.path`.
 
-### Step 2 — start the daemon
+### Step 2 — start the daemon (long-running, persistent)
 
 The daemon's bundled default config ships `ipc.http.enabled: true` on
-`127.0.0.1:7878`, so the next line is the full setup:
+`127.0.0.1:7878` with in-process stores. Flip it to sqlite-backed
+storage under `~/.opencoat/` so concerns survive across restarts, then
+bring it up:
 
 ```bash
-mkdir -p .opencoat
-opencoat runtime up --pid-file .opencoat/opencoat.pid
-opencoat runtime status --pid-file .opencoat/opencoat.pid
+opencoat configure daemon                                       # writes ~/.opencoat/daemon.yaml
+opencoat runtime up  --config ~/.opencoat/daemon.yaml \
+                     --pid-file ~/.opencoat/opencoat.pid
+opencoat runtime status --pid-file ~/.opencoat/opencoat.pid
 # expect: endpoint=http://127.0.0.1:7878/rpc · pid=<NNNN> · state=running
 ```
 
-`up` double-forks the daemon so it survives this shell. Logs go to
-stderr until you wire `--log-file`. Pass `--port 17890` (or any free
-port) if 7878 is already in use.
+`runtime up` double-forks the daemon so it stays alive after this
+shell — that's by design. Leave it running between host-agent
+sessions; concerns + DCN activation log persist in
+`~/.opencoat/*.sqlite`. Pass `--port 17890` (or any free port) if
+7878 is already in use; logs go to stderr until you wire `--log-file`.
+
+(If you just want a one-off hermetic run with no on-disk state,
+skip `configure daemon` — the bundled default uses in-process stores
+and works without any config file.)
 
 ### Step 3 — import the 3 demo concerns
 
@@ -310,10 +319,18 @@ opencoat dcn export --format dot -o dcn.dot
 dot -Tsvg dcn.dot -o dcn.svg && open dcn.svg
 ```
 
-### Step 6 — tear down
+### Step 6 — keep it running (or tear down)
+
+`opencoat runtime up` double-forked the daemon at Step 2, so it stays
+alive after this terminal closes. **Leave it running** between host-agent
+sessions — that's the whole point: concerns and the DCN activation log
+persist in `~/.opencoat/*.sqlite` so the next conversation picks up where
+this one stopped.
+
+If you really do want to stop it (e.g. freeing port 7878):
 
 ```bash
-opencoat runtime down --pid-file .opencoat/opencoat.pid
+opencoat runtime down --pid-file ~/.opencoat/opencoat.pid
 deactivate                                # leave the venv
 ```
 
@@ -395,7 +412,7 @@ venv. Both paths give the same CLI surface.
 | `Client.connect(…)` raises `HostTransportConnectionError` | daemon down or bound on another port; `opencoat runtime status` is the truth |
 | `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
 | `bootstrap_opencoat.install()` does nothing visible | host loop never calls `installed.apply_to(prompt_ctx)` / `installed.guard_tool_call(call)` — see Step 4b for the canonical loop and [concerns.md](concerns.md) for the cookbook |
-| daemon refuses to start because PID file exists | stale PID → `rm .opencoat/opencoat.pid && opencoat runtime up …` |
+| daemon refuses to start because PID file exists | stale PID → `rm ~/.opencoat/opencoat.pid && opencoat runtime up …` |
 
 Anything else: `opencoat inspect joinpoints` and
 `opencoat inspect pointcuts` are dependency-free and confirm the
