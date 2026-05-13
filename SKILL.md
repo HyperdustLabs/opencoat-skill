@@ -39,7 +39,7 @@ Copy this checklist and walk through it top-to-bottom:
 - [ ] Step 1: install the CLI + host SDK
 - [ ] Step 2: start the daemon
 - [ ] Step 3: import the 3 demo concerns
-- [ ] Step 4a: emit joinpoints from any host (universal)
+- [ ] Step 4a: `opencoat demo` — see concerns change host behavior
 - [ ] Step 4b (optional): wire an OpenClaw host plugin
 - [ ] Step 5: inspect the DCN
 - [ ] Step 6: tear down
@@ -115,53 +115,64 @@ demo-memory-tag      active   Demo — annotate every memory write
 What each one does, and where it fires, is documented in
 [concerns.md](concerns.md).
 
-### Step 4a — emit joinpoints (universal, ~15 lines)
-
-This is the smallest end-to-end demo and works for **any** host (no
-OpenClaw required). Save as `demo_host.py` and run inside the same
-venv:
-
-```python
-from opencoat_runtime_host_sdk import Client, JoinpointEmitter
-
-client  = Client.connect("http://127.0.0.1:7878")
-emitter = JoinpointEmitter(client=client, host="demo")
-
-scenarios = [
-    ("runtime_start",       {"stage": "boot"}),
-    # Keyword match scans payload ``text`` / ``content`` / ``raw_text`` /
-    # ``token`` only — put ``rm -rf`` in one of those keys so
-    # ``demo-tool-block``'s ``any_keywords`` matcher sees it.
-    ("before_tool_call",    {"content": "shell.exec rm -rf /tmp/scratch"}),
-    ("before_memory_write", {"key": "preferences.tone", "value": "concise"}),
-]
-
-for name, payload in scenarios:
-    inj = emitter.emit(name, agent_session_id="demo-session", payload=payload)
-    if inj is None or not inj.injections:
-        print(f"{name:>22}: no concerns activated")
-        continue
-    ids = sorted({i.concern_id for i in inj.injections})
-    print(f"{name:>22}: {len(inj.injections)} injection(s) → {ids}")
-```
+### Step 4a — see concerns change host behavior (one line)
 
 ```bash
-python demo_host.py
+opencoat demo
 ```
 
-Expected output (`runtime_start` and `before_memory_write` always fire
-in the bundled `--demo` set; `before_tool_call` fires when the payload
-contains the keyword the concern is watching for):
+That's the whole step. The CLI subscribes a tiny in-script `FakeHost`
+to the daemon via `install_hooks`, fires three events, and uses the
+pickup API (`apply_to` / `guard_tool_call`) to fold the returned
+advice back into the host's mutable state. Three scenes print
+**BEFORE / AFTER** so concerns visibly change the host context:
 
 ```text
-         runtime_start: 1 injection(s) → ['demo-prompt-prefix']
-      before_tool_call: 1 injection(s) → ['demo-tool-block']
-  before_memory_write: 1 injection(s) → ['demo-memory-tag']
+== OpenCOAT demo — daemon @ http://127.0.0.1:7878/rpc ==
+
+[1/3] PROMPT FOLDING — concern: demo-prompt-prefix
+  fire event : agent.started
+  prompt slot: runtime_prompt.active_concerns
+  BEFORE     : ""
+  AFTER      : Begin every response with `[OpenCOAT demo active]`.
+  → apply_to() folded demo-prompt-prefix into the prompt slot.
+
+[2/3] TOOL GUARD — concern: demo-tool-block
+  fire event : agent.before_tool (payload includes 'rm -rf')
+  tool call  : shell.exec rm -rf /tmp/scratch
+  outcome    : BLOCKED
+  reason     : Refusing destructive shell command — `rm -rf` is blocked by demo-tool-block.
+  → guard_tool_call() returned blocked=True. Host should refuse.
+
+[3/3] MEMORY NOTE — concern: demo-memory-tag
+  fire event : agent.memory_write
+  memory slot: memory_write.policy_note
+  BEFORE     : ""
+  AFTER      : memory.policy=demo-memory-tag: write annotated by demo concern.
+  → apply_to() annotated memory_write.policy_note.
+
+✓ All three scenes produced visible host-context changes.
 ```
 
-If a row says `no concerns activated`, the daemon is up but the
-joinpoint name didn't match any active concern — `opencoat concern
-list --lifecycle-state active` is the first thing to check.
+If the daemon isn't running yet (or you don't want to bother seeding
+it), `opencoat demo --in-proc` builds an in-process runtime and
+seeds the three demo concerns automatically — same three scenes, no
+`opencoat runtime up` / `concern import` required.
+
+Want to learn the underlying pattern? `opencoat demo --script-out
+demo_host.py` writes the equivalent ~40-line Python file (the same
+`install_hooks` → `apply_to` / `guard_tool_call` shape your own
+host will use) to disk without running anything. That's the seed
+for adapting the demo to a real host agent.
+
+The two pickup points to remember:
+
+- `installed.apply_to(context)` — fold every buffered advice row
+  into a mutable host context (prompt slots, memory slots, …).
+- `installed.guard_tool_call(call)` — decode `TOOL_GUARD` advice
+  into a structured outcome you can branch on (`outcome.blocked` →
+  refuse; `outcome.arguments` → dispatch with rewrites;
+  `outcome.notes` → audit-only annotations).
 
 ### Step 4b — OpenClaw host plugin (optional)
 
@@ -189,17 +200,39 @@ from opencoat_plugin.bootstrap_opencoat import install
 
 installed = install(your_openclaw_host)   # default: daemon at $OPENCOAT_DAEMON_URL
 try:
-    your_openclaw_host.run()              # drive the agent normally
+    while turn := your_openclaw_host.next_turn():
+        # 1. events flow into the daemon automatically through the
+        #    install_hooks subscriptions; concerns activate inside it.
+        turn.run_until_prompt()
+
+        # 2. fold every active advice row into the prompt context
+        #    BEFORE calling the LLM. Empty buffer → identity.
+        turn.prompt_ctx = installed.apply_to(turn.prompt_ctx)
+
+        # 3. before dispatching each pending tool call, ask OpenCOAT
+        #    whether any TOOL_GUARD advice applies. None → default-allow.
+        for call in turn.pending_tool_calls():
+            outcome = installed.guard_tool_call(call)
+            if outcome is not None and outcome.blocked:
+                turn.refuse(call, reason=outcome.block_reason)
+            elif outcome is not None:
+                turn.dispatch(call["name"], outcome.arguments, notes=outcome.notes)
+            else:
+                turn.dispatch(call["name"], call["arguments"])
 finally:
     installed.uninstall()
 ```
 
 `install()` connects to the running daemon over HTTP (the same daemon
 you started in Step 2), so concerns + DCN state are shared with
-`opencoat concern …` / `opencoat dcn …`. For a one-process unit test
-where you don't want a daemon, swap `install()` for
-`install_in_process()` — same signature, plus a bundled
-`OpenCOATRuntime` is returned.
+`opencoat concern …` / `opencoat dcn …`. The two pickup points
+(`apply_to` / `guard_tool_call`) are where OpenCOAT's advice materialises
+back into your host — without them you'll see activations in the DCN
+log but no visible change to the agent's prompt or tool dispatch.
+
+For a one-process unit test where you don't want a daemon, swap
+`install()` for `install_in_process()` — same signature + pickup API,
+plus a bundled `OpenCOATRuntime` is returned.
 
 For a non-OpenClaw host, swap `openclaw` for `custom` — the same four
 files, with the adapter and joinpoint mapping stubbed for you to fill
@@ -313,7 +346,7 @@ opencoat-runtime-host` and the skill is re-tagged.
 | `python demo_host.py` raises `ModuleNotFoundError: opencoat_runtime_host_sdk` | `pip install` of `opencoat-runtime-host` missing — see Step 1 |
 | `Client.connect(…)` raises `HostTransportConnectionError` | daemon down or bound on another port; `opencoat runtime status` is the truth |
 | `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
-| `bootstrap_opencoat.install()` does nothing visible | host did not subscribe to `agent.before_tool_call` — see the cookbook block at the bottom of [concerns.md](concerns.md) |
+| `bootstrap_opencoat.install()` does nothing visible | host loop never calls `installed.apply_to(prompt_ctx)` / `installed.guard_tool_call(call)` — see Step 4b for the canonical loop and [concerns.md](concerns.md) for the cookbook |
 | daemon refuses to start because PID file exists | stale PID → `rm .opencoat/opencoat.pid && opencoat runtime up …` |
 
 Anything else: `opencoat inspect joinpoints` and

@@ -15,9 +15,17 @@ how to:
   the block flips to `pipx install opencoat-runtime`),
 - start a local daemon (zero-config HTTP on `127.0.0.1:7878`),
 - import three dramatic demo concerns,
-- emit joinpoints from any host (universal `Client` +
-  `JoinpointEmitter` path) or scaffold an OpenClaw plugin
-  (`opencoat plugin install openclaw`), and
+- close the full loop with one command — `opencoat demo` fires three
+  events through `install_hooks` and uses the pickup API
+  (`apply_to` / `guard_tool_call`) to fold the resulting advice
+  back into a tiny in-script host. Three scenes print BEFORE /
+  AFTER so users see concerns visibly change behavior on first
+  read. `opencoat demo --in-proc` runs the same tour without a
+  daemon (no setup), and `opencoat demo --script-out demo_host.py`
+  dumps the equivalent Python for users who want a template to
+  adapt for a real host. Scaffold an OpenClaw plugin with
+  `opencoat plugin install openclaw` for the same loop pre-wired,
+  then
 - inspect the resulting Deep Concern Network.
 
 ## Layout
