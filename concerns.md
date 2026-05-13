@@ -212,29 +212,39 @@ opencoat concern list --tag demo
 
 ## Cookbook — wiring `before_tool_call` on the OpenClaw scaffold
 
-The OpenClaw scaffold's `DEFAULT_EVENT_NAMES` covers `agent.started`
-and `agent.memory_write` but **not** `agent.before_tool_call` —
-extend it once and the `TOOL_GUARD` recipes above start firing:
+The OpenClaw scaffold's `DEFAULT_EVENT_NAMES` covers `agent.started`,
+`agent.user_message`, and `agent.memory_write` but **not**
+`agent.before_tool_call` — pass an extended event list to `install()`
+and the `TOOL_GUARD` recipes above start firing:
 
 ```python
-# opencoat_plugin/bootstrap_opencoat.py  (snippet)
-from opencoat_runtime_host_openclaw import install_hooks
-from opencoat_plugin.host_adapter import build_adapter
-from opencoat_plugin.concerns import seed_concerns
+# wherever your host agent starts up
+from opencoat_plugin.bootstrap_opencoat import install
 
-def install():
-    adapter = build_adapter()
-    install_hooks(
-        adapter,
-        event_names=[
-            "agent.started",
-            "agent.before_tool_call",   # add this row
-            "agent.memory_write",
-        ],
-    )
-    for concern in seed_concerns():
-        adapter.runtime.concern_store.upsert(concern)
+installed = install(
+    your_openclaw_host,
+    event_names=(
+        "agent.started",
+        "agent.user_message",
+        "agent.before_tool_call",   # add this row
+        "agent.memory_write",
+    ),
+    # daemon_url=...               # defaults to OPENCOAT_DAEMON_URL or http://127.0.0.1:7878
+)
+try:
+    your_openclaw_host.run()
+finally:
+    installed.uninstall()
 ```
 
-After editing, restart the host process — `install_hooks` is
-idempotent but only re-reads the event list on a fresh import.
+`install()` builds an HTTP-backed `Client` for the daemon you started
+with `opencoat runtime up`, wraps it in a `RuntimeLike` proxy, and
+hands it to the openclaw adapter. Activations land in the daemon's
+DCN store, so `opencoat dcn activation-log --concern-id <id>` sees
+them straight away.
+
+If you'd rather run the runtime in-process (no daemon, memory stores,
+state lives for the host's lifetime) — typical for unit tests — swap
+`install` for `install_in_process` (returns `(runtime, installed)`
+so you can introspect the local stores). The `event_names` argument
+is identical.

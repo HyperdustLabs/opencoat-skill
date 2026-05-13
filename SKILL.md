@@ -19,14 +19,14 @@ sits between the host's prompt/tool loop and the model.
 
 This skill is the "5-minute install" that makes the runtime visible:
 
-1. install the CLI,
-2. scaffold a host plugin,
-3. start a local daemon,
-4. import the 3 dramatic demo concerns,
-5. observe them firing on the demo host,
-6. inspect the Deep Concern Network (DCN).
+1. install the CLI + host SDK,
+2. start a local daemon (zero-config HTTP on `127.0.0.1:7878`),
+3. import the 3 dramatic demo concerns,
+4. emit a few joinpoints and watch them light up activations,
+5. inspect the Deep Concern Network (DCN),
+6. tear down.
 
-> Source repo: <https://github.com/HyperdustLabs/OpenCOAT>
+> Source repo: <https://github.com/HyperdustLabs/OpenCOAT>  
 > Skill repo:  <https://github.com/HyperdustLabs/opencoat-skill>
 
 ---
@@ -36,48 +36,55 @@ This skill is the "5-minute install" that makes the runtime visible:
 Copy this checklist and walk through it top-to-bottom:
 
 ```text
-- [ ] Step 1: install the CLI
-- [ ] Step 2: scaffold the OpenClaw host plugin
-- [ ] Step 3: start the daemon
-- [ ] Step 4: import the 3 demo concerns
-- [ ] Step 5: trigger them from the demo host
-- [ ] Step 6: inspect the DCN
-- [ ] Step 7: tear down
+- [ ] Step 1: install the CLI + host SDK
+- [ ] Step 2: start the daemon
+- [ ] Step 3: import the 3 demo concerns
+- [ ] Step 4a: emit joinpoints from any host (universal)
+- [ ] Step 4b (optional): wire an OpenClaw host plugin
+- [ ] Step 5: inspect the DCN
+- [ ] Step 6: tear down
 ```
 
 ### Step 1 — install
 
-```bash
-pipx install opencoat-runtime-cli
-opencoat --version
-```
+OpenCOAT ships as three packages out of the monorepo at
+<https://github.com/HyperdustLabs/OpenCOAT>:
 
-`pipx` keeps the CLI in its own venv so it never collides with the
-host agent's Python. If `pipx` is not available, fall back to
-`pip install --user opencoat-runtime-cli`.
-
-### Step 2 — scaffold a host plugin
-
-```bash
-opencoat plugin install openclaw --out ./opencoat_plugin
-```
-
-Generates four lint-clean files in `./opencoat_plugin/`:
-
-| file | role |
+| package | what it is |
 | --- | --- |
-| `__init__.py` | makes the directory a package |
-| `bootstrap_opencoat.py` | call once at host startup to register concerns + adapter |
-| `host_adapter.py` | maps host events → OpenCOAT joinpoints |
-| `concerns.py` | three starter concerns (edit freely) |
+| `opencoat-runtime-protocol` | wire envelopes + JSON Schemas (pulled in transitively) |
+| `opencoat-runtime` | runtime core + daemon + `opencoat` CLI |
+| `opencoat-runtime-host` | host SDK (`Client`, `JoinpointEmitter`) + OpenClaw adapter |
 
-For a non-OpenClaw host, swap `openclaw` for `custom` — the same four
-files, with the adapter stubbed for you to fill in.
+PyPI publication is pending; install straight from GitHub today. A
+throwaway venv (Python 3.12+) keeps the install isolated from the host
+agent's Python. Until PyPI lands, all three sibling packages must be
+named explicitly — pip resolves transitive deps from PyPI by default,
+so the protocol package has to be on disk before `opencoat-runtime`
+and `opencoat-runtime-host` can find it:
 
-### Step 3 — start the daemon
+```bash
+python3 -m venv .opencoat/venv
+source .opencoat/venv/bin/activate
 
-The CLI ships a sensible default config; you only need a PID file
-location. A throwaway dir works for local exploration:
+REPO="git+https://github.com/HyperdustLabs/OpenCOAT.git"
+pip install \
+  "$REPO#subdirectory=packages/opencoat-runtime-protocol" \
+  "$REPO#subdirectory=packages/opencoat-runtime" \
+  "$REPO#subdirectory=packages/opencoat-runtime-host"
+
+opencoat --version    # → 0.1.x
+```
+
+Once PyPI lands you'll be able to swap that block for
+`pipx install opencoat-runtime` + `pipx inject opencoat-runtime
+opencoat-runtime-host` (the protocol package comes along transitively).
+This skill will be re-tagged when that happens.
+
+### Step 2 — start the daemon
+
+The daemon's bundled default config ships `ipc.http.enabled: true` on
+`127.0.0.1:7878`, so the next line is the full setup:
 
 ```bash
 mkdir -p .opencoat
@@ -87,9 +94,10 @@ opencoat runtime status --pid-file .opencoat/opencoat.pid
 ```
 
 `up` double-forks the daemon so it survives this shell. Logs go to
-stderr until you wire `--log-file`.
+stderr until you wire `--log-file`. Pass `--port 17890` (or any free
+port) if 7878 is already in use.
 
-### Step 4 — import the 3 demo concerns
+### Step 3 — import the 3 demo concerns
 
 ```bash
 opencoat concern import --demo
@@ -107,31 +115,112 @@ demo-memory-tag      active   Demo — annotate every memory write
 What each one does, and where it fires, is documented in
 [concerns.md](concerns.md).
 
-### Step 5 — trigger them
+### Step 4a — emit joinpoints (universal, ~15 lines)
 
-If you generated the OpenClaw scaffold in Step 2, run the bootstrap
-once from the host process:
+This is the smallest end-to-end demo and works for **any** host (no
+OpenClaw required). Save as `demo_host.py` and run inside the same
+venv:
 
 ```python
-# in the host agent's startup code
-from opencoat_plugin.bootstrap_opencoat import install
-install()
+from opencoat_runtime_host_sdk import Client, JoinpointEmitter
+
+client  = Client.connect("http://127.0.0.1:7878")
+emitter = JoinpointEmitter(client=client, host="demo")
+
+scenarios = [
+    ("runtime_start",       {"stage": "boot"}),
+    # Keyword match scans payload ``text`` / ``content`` / ``raw_text`` /
+    # ``token`` only — put ``rm -rf`` in one of those keys so
+    # ``demo-tool-block``'s ``any_keywords`` matcher sees it.
+    ("before_tool_call",    {"content": "shell.exec rm -rf /tmp/scratch"}),
+    ("before_memory_write", {"key": "preferences.tone", "value": "concise"}),
+]
+
+for name, payload in scenarios:
+    inj = emitter.emit(name, agent_session_id="demo-session", payload=payload)
+    if inj is None or not inj.injections:
+        print(f"{name:>22}: no concerns activated")
+        continue
+    ids = sorted({i.concern_id for i in inj.injections})
+    print(f"{name:>22}: {len(inj.injections)} injection(s) → {ids}")
 ```
 
-Now drive the host agent normally. The three demo concerns light up
-on the joinpoints listed in [concerns.md](concerns.md) — the marker
-`[OpenCOAT demo active]` should appear at the start of every reply,
-`rm -rf` shell calls should be refused, and every memory write should
-carry a `memory.policy=demo-memory-tag` annotation.
+```bash
+python demo_host.py
+```
 
-### Step 6 — inspect
+Expected output (`runtime_start` and `before_memory_write` always fire
+in the bundled `--demo` set; `before_tool_call` fires when the payload
+contains the keyword the concern is watching for):
+
+```text
+         runtime_start: 1 injection(s) → ['demo-prompt-prefix']
+      before_tool_call: 1 injection(s) → ['demo-tool-block']
+  before_memory_write: 1 injection(s) → ['demo-memory-tag']
+```
+
+If a row says `no concerns activated`, the daemon is up but the
+joinpoint name didn't match any active concern — `opencoat concern
+list --lifecycle-state active` is the first thing to check.
+
+### Step 4b — OpenClaw host plugin (optional)
+
+If you're integrating OpenCOAT into a real OpenClaw-shaped host agent
+(anything that exposes `subscribe(event_name, callback) -> unsubscribe`),
+scaffold a plugin:
+
+```bash
+opencoat plugin install openclaw --out ./opencoat_plugin
+```
+
+Generates four lint-clean files in `./opencoat_plugin/`:
+
+| file | role |
+| --- | --- |
+| `__init__.py` | makes the directory a package |
+| `bootstrap_opencoat.py` | call once at host startup to register concerns + adapter |
+| `host_adapter.py` | maps host events → OpenCOAT joinpoints (you only edit this) |
+| `concerns.py` | three starter concerns (edit freely) |
+
+Then, from your host's startup code:
+
+```python
+from opencoat_plugin.bootstrap_opencoat import install
+
+installed = install(your_openclaw_host)   # default: daemon at $OPENCOAT_DAEMON_URL
+try:
+    your_openclaw_host.run()              # drive the agent normally
+finally:
+    installed.uninstall()
+```
+
+`install()` connects to the running daemon over HTTP (the same daemon
+you started in Step 2), so concerns + DCN state are shared with
+`opencoat concern …` / `opencoat dcn …`. For a one-process unit test
+where you don't want a daemon, swap `install()` for
+`install_in_process()` — same signature, plus a bundled
+`OpenCOATRuntime` is returned.
+
+For a non-OpenClaw host, swap `openclaw` for `custom` — the same four
+files, with the adapter and joinpoint mapping stubbed for you to fill
+in, plus a `daemon_client()` helper that returns a ready-to-use
+`Client`.
+
+### Step 5 — inspect
 
 See [inspection.md](inspection.md) for the full surface. The two most
-useful commands while the demos are firing:
+useful commands while activations are flowing:
 
 ```bash
 opencoat concern list --lifecycle-state active
 opencoat dcn activation-log --limit 20
+```
+
+Sample activation log after `demo_host.py`:
+
+```text
+2026-05-13T08:39:35  demo-memory-tag   62515cdf-…  score=0.675
+2026-05-13T08:39:35  demo-prompt-prefix 7a221311-…  score=0.500
 ```
 
 For a graph view:
@@ -141,10 +230,11 @@ opencoat dcn export --format dot -o dcn.dot
 dot -Tsvg dcn.dot -o dcn.svg && open dcn.svg
 ```
 
-### Step 7 — tear down
+### Step 6 — tear down
 
 ```bash
 opencoat runtime down --pid-file .opencoat/opencoat.pid
+deactivate                                # leave the venv
 ```
 
 The PID file is unlinked on a clean exit; if the daemon was
@@ -199,18 +289,19 @@ Do **not** use this skill for:
 
 ## Compatibility & versions
 
-This skill tracks `opencoat-runtime-cli` major. Today:
+This skill tracks `opencoat-runtime` major. Today:
 
-| component | min supported |
-| --- | --- |
-| `opencoat-runtime-cli` | `0.0.1` |
-| `opencoat-runtime-daemon` | `0.0.1` |
-| `opencoat-runtime-host-plugins[openclaw]` | `0.0.1` (M5) |
+| component | min supported | source |
+| --- | --- | --- |
+| `opencoat-runtime` | `0.1.0` | `git+…#subdirectory=packages/opencoat-runtime` |
+| `opencoat-runtime-host` | `0.1.0` | `git+…#subdirectory=packages/opencoat-runtime-host` |
+| `opencoat-runtime-protocol` | `0.1.0` | pulled transitively |
 
-The skill does **not** install the upstream packages with pinned
-versions on purpose — `pipx install opencoat-runtime-cli` always
-picks the latest published wheel, and the CLI handles workspace
-discovery itself.
+PyPI wheels are not published yet; this skill installs from `main` on
+purpose so the demo always runs against the most recent stable surface.
+When PyPI publication lands, the install lines flip to
+`pipx install opencoat-runtime` + `pipx inject opencoat-runtime
+opencoat-runtime-host` and the skill is re-tagged.
 
 ---
 
@@ -219,6 +310,8 @@ discovery itself.
 | symptom | likely fix |
 | --- | --- |
 | `opencoat runtime up` hangs | port 7878 in use → pass `--port 17890` (or another) and re-run `status` with the same flag |
+| `python demo_host.py` raises `ModuleNotFoundError: opencoat_runtime_host_sdk` | `pip install` of `opencoat-runtime-host` missing — see Step 1 |
+| `Client.connect(…)` raises `HostTransportConnectionError` | daemon down or bound on another port; `opencoat runtime status` is the truth |
 | `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
 | `bootstrap_opencoat.install()` does nothing visible | host did not subscribe to `agent.before_tool_call` — see the cookbook block at the bottom of [concerns.md](concerns.md) |
 | daemon refuses to start because PID file exists | stale PID → `rm .opencoat/opencoat.pid && opencoat runtime up …` |
