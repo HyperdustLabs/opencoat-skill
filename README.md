@@ -7,12 +7,12 @@ Drop this skill into any agent that supports the agent-skill
 convention (Cursor, Claude Code, Codex, …) and the agent will know
 how to:
 
-- install `opencoat-runtime` + `opencoat-runtime-host` (today
-  straight from `main`, via three `pip install
-  "git+https://github.com/HyperdustLabs/OpenCOAT.git#subdirectory=…"`
-  lines for `opencoat-runtime-protocol`, `opencoat-runtime`, and
-  `opencoat-runtime-host` — PyPI publication is pending, after which
-  the block flips to `pipx install opencoat-runtime`),
+- install `opencoat-runtime` from
+  [PyPI](https://pypi.org/project/opencoat-runtime/) — one
+  `pipx install opencoat-runtime` puts the `opencoat` CLI on `PATH`,
+  and `pipx inject opencoat-runtime opencoat-runtime-host` wires the
+  host SDK into the same env so the demo's lazy imports succeed
+  (`opencoat-runtime-protocol` comes along transitively),
 - start a local daemon (zero-config HTTP on `127.0.0.1:7878`),
 - import three dramatic demo concerns,
 - close the full loop with one command — `opencoat demo` fires three

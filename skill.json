@@ -1,6 +1,6 @@
 {
   "name": "opencoat",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Install and use OpenCOAT — the Open Concern-Oriented Agent Thinking Runtime — to add concern-driven joinpoint / pointcut / advice / weaving on top of a host agent.",
   "author": "HyperdustLabs",
   "license": "Apache-2.0",
