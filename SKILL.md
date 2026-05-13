@@ -149,9 +149,22 @@ sessions; concerns + DCN activation log persist in
 `~/.opencoat/*.sqlite`. Pass `--port 17890` (or any free port) if
 7878 is already in use; logs go to stderr until you wire `--log-file`.
 
-(If you just want a one-off hermetic run with no on-disk state,
-skip `configure daemon` — the bundled default uses in-process stores
-and works without any config file.)
+**One-off hermetic run (no on-disk state):** skip `configure daemon`
+entirely and drop `--config` from the commands above. The bundled
+default already enables HTTP on `127.0.0.1:7878` with in-process
+stores, so this works without any config file:
+
+```bash
+mkdir -p ~/.opencoat
+opencoat runtime up      --pid-file ~/.opencoat/opencoat.pid
+opencoat runtime status  --pid-file ~/.opencoat/opencoat.pid
+# expect: endpoint=http://127.0.0.1:7878/rpc · pid=<NNNN> · state=running
+```
+
+Concerns + DCN live in memory and are gone the moment you
+`runtime down` (or the host reboots). That's the right mode for
+hermetic CI / `pytest` / a one-shot demo — but not for actual usage
+across host-agent sessions.
 
 ### Step 3 — import the 3 demo concerns
 
