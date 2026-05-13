@@ -104,14 +104,26 @@ export default {
       `https://raw.githubusercontent.com/${env.GITHUB_OWNER}/` +
       `${env.GITHUB_REPO}/${env.GITHUB_BRANCH}/${repoPath}`;
 
-    const ttl = Math.max(0, Number.parseInt(env.EDGE_TTL_SECONDS ?? "300", 10) || 300);
+    // Parse TTL allowing an explicit ``0`` to disable the edge cache.
+    // Naive ``parseInt(...) || 300`` would silently rewrite ``"0"``
+    // back to 300, which makes emergency content rollouts stale for
+    // up to five minutes after maintainers intentionally opt out.
+    const parsedTtl = Number.parseInt(env.EDGE_TTL_SECONDS ?? "300", 10);
+    const ttl = Number.isFinite(parsedTtl) && parsedTtl >= 0 ? parsedTtl : 300;
 
     const upstream = await fetch(upstreamUrl, {
+      // Forward the *incoming* method so ``HEAD`` probes (curl -I,
+      // uptime monitors) ask GitHub for headers only instead of
+      // pulling the full body every time. Both ``GET`` and ``HEAD``
+      // are safely cacheable by Cloudflare and use independent edge
+      // cache keys, so this doesn't poison the cache for the other
+      // verb.
+      method: request.method,
       // Cloudflare-specific cache hint: cache the upstream response
       // at the Cloudflare edge for ``ttl`` seconds regardless of
-      // the upstream's own Cache-Control. Without this, every
-      // worker invocation re-fetches from GitHub.
-      cf: { cacheTtl: ttl, cacheEverything: true },
+      // the upstream's own Cache-Control. ``ttl === 0`` disables
+      // the edge cache entirely (every request hits GitHub).
+      cf: ttl > 0 ? { cacheTtl: ttl, cacheEverything: true } : { cacheTtl: 0, cacheEverything: false },
       headers: {
         "User-Agent": "opencoat-skill-worker/1.0 (+https://github.com/HyperdustLabs/opencoat-skill)",
         Accept: "text/plain, */*",
