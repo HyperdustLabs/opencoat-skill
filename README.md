@@ -15,9 +15,11 @@ how to:
   the block flips to `pipx install opencoat-runtime`),
 - start a local daemon (zero-config HTTP on `127.0.0.1:7878`),
 - import three dramatic demo concerns,
-- emit joinpoints from any host (universal `Client` +
-  `JoinpointEmitter` path) or scaffold an OpenClaw plugin
-  (`opencoat plugin install openclaw`), and
+- close the full loop — event → daemon → advice → **visible host
+  state change** — via the `install_hooks` + `apply_to` +
+  `guard_tool_call` pickup API on any subscribe-shaped host, or
+  scaffold an OpenClaw plugin (`opencoat plugin install openclaw`)
+  with the same loop pre-wired, and
 - inspect the resulting Deep Concern Network.
 
 ## Layout

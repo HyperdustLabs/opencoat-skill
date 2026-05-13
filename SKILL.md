@@ -115,53 +115,121 @@ demo-memory-tag      active   Demo — annotate every memory write
 What each one does, and where it fires, is documented in
 [concerns.md](concerns.md).
 
-### Step 4a — emit joinpoints (universal, ~15 lines)
+### Step 4a — see concerns change host behavior (universal, ~40 lines)
 
-This is the smallest end-to-end demo and works for **any** host (no
-OpenClaw required). Save as `demo_host.py` and run inside the same
-venv:
+This is the smallest end-to-end demo where concerns actually **modify
+the host's state** rather than just lighting up an activation log.
+Works for any host that exposes a `subscribe(event_name, callback) ->
+unsubscribe` surface (i.e. anything event-driven). Save as
+`demo_host.py` and run inside the same venv:
 
 ```python
-from opencoat_runtime_host_sdk import Client, JoinpointEmitter
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
-client  = Client.connect("http://127.0.0.1:7878")
-emitter = JoinpointEmitter(client=client, host="demo")
+from opencoat_runtime_host_openclaw import (
+    OpenClawAdapter,
+    OpenClawMemoryBridge,
+    install_hooks,
+)
+from opencoat_runtime_host_sdk import Client
+from opencoat_runtime_protocol import ConcernInjection, JoinpointEvent
 
-scenarios = [
-    ("runtime_start",       {"stage": "boot"}),
-    # Keyword match scans payload ``text`` / ``content`` / ``raw_text`` /
-    # ``token`` only — put ``rm -rf`` in one of those keys so
-    # ``demo-tool-block``'s ``any_keywords`` matcher sees it.
-    ("before_tool_call",    {"content": "shell.exec rm -rf /tmp/scratch"}),
-    ("before_memory_write", {"key": "preferences.tone", "value": "concise"}),
-]
 
-for name, payload in scenarios:
-    inj = emitter.emit(name, agent_session_id="demo-session", payload=payload)
-    if inj is None or not inj.injections:
-        print(f"{name:>22}: no concerns activated")
-        continue
-    ids = sorted({i.concern_id for i in inj.injections})
-    print(f"{name:>22}: {len(inj.injections)} injection(s) → {ids}")
+@dataclass
+class FakeHost:
+    """Tiny in-script stand-in for an OpenClaw-shaped host."""
+
+    subscriptions: dict[str, list[Callable[[dict[str, Any]], None]]] = field(default_factory=dict)
+
+    def subscribe(self, event_name, callback):
+        self.subscriptions.setdefault(event_name, []).append(callback)
+        return lambda: self.subscriptions[event_name].remove(callback)
+
+    def fire(self, event_name, payload):
+        for cb in list(self.subscriptions.get(event_name, [])):
+            cb(payload)
+
+
+class DaemonRuntime:
+    """RuntimeLike: forwards every event into the daemon over HTTP."""
+
+    def __init__(self, client: Client) -> None:
+        self._client = client
+
+    def on_joinpoint(self, jp: JoinpointEvent, *, context=None, return_none_when_empty=False) -> ConcernInjection | None:
+        return self._client.emit(jp, context=context, return_none_when_empty=return_none_when_empty)
+
+
+client = Client.connect("http://127.0.0.1:7878")
+host = FakeHost()
+installed = install_hooks(
+    host,
+    runtime=DaemonRuntime(client),
+    adapter=OpenClawAdapter(),
+    bridge=OpenClawMemoryBridge(dcn_store=None),  # daemon owns the DCN
+    event_names=("agent.started", "agent.before_tool", "agent.memory_write"),
+)
+
+try:
+    # --- scene 1: prompt folding ---
+    prompt_before = {"runtime_prompt": {"active_concerns": "", "system": "Be helpful."}}
+    host.fire("agent.started", {"turn_id": "t-1", "payload": {}})
+    prompt_after = installed.apply_to(prompt_before)
+    print("PROMPT before:", prompt_before["runtime_prompt"]["active_concerns"] or "<empty>")
+    print("PROMPT after :", prompt_after["runtime_prompt"]["active_concerns"])
+
+    # --- scene 2: tool guard ---
+    # ``demo-tool-block`` matches keywords against payload.content /
+    # .text / .raw_text / .token — put the command line in one of
+    # those keys so the matcher sees it.
+    tool_call = {"name": "shell.exec", "arguments": {"command": "rm -rf /tmp/scratch"}}
+    host.fire("agent.before_tool", {"turn_id": "t-1", "payload": {"content": "shell.exec rm -rf /tmp/scratch"}})
+    outcome = installed.guard_tool_call(tool_call)
+    print("TOOL    :", "BLOCKED →" if outcome and outcome.blocked else "allowed", outcome and outcome.block_reason)
+
+    # --- scene 3: memory write ---
+    host.fire("agent.memory_write", {"turn_id": "t-1", "payload": {"key": "preferences.tone", "value": "concise"}})
+    memory_after = installed.apply_to({"memory_write": {"policy_note": ""}})
+    print("MEMORY  :", memory_after["memory_write"]["policy_note"])
+finally:
+    installed.uninstall()
 ```
 
 ```bash
 python demo_host.py
 ```
 
-Expected output (`runtime_start` and `before_memory_write` always fire
-in the bundled `--demo` set; `before_tool_call` fires when the payload
-contains the keyword the concern is watching for):
+Expected output (this is the "concerns actually change behavior"
+moment — `apply_to` and `guard_tool_call` are the two pickup
+points that fold OpenCOAT's advice back into your host):
 
 ```text
-         runtime_start: 1 injection(s) → ['demo-prompt-prefix']
-      before_tool_call: 1 injection(s) → ['demo-tool-block']
-  before_memory_write: 1 injection(s) → ['demo-memory-tag']
+PROMPT before: <empty>
+PROMPT after : Begin every response with `[OpenCOAT demo active]`.
+TOOL    : BLOCKED → Refusing destructive shell command — `rm -rf` is blocked by demo-tool-block.
+MEMORY  : memory.policy=demo-memory-tag: write annotated by demo concern.
 ```
 
-If a row says `no concerns activated`, the daemon is up but the
-joinpoint name didn't match any active concern — `opencoat concern
-list --lifecycle-state active` is the first thing to check.
+If `PROMPT after` is empty, the daemon is up but `demo-prompt-prefix`
+isn't active — `opencoat concern list --lifecycle-state active` is
+the first thing to check. If `TOOL` says `allowed`, the keyword
+matcher didn't see the `rm -rf` payload — verify the payload key is
+one of `content` / `text` / `raw_text` / `token`.
+
+The trick here is two-step: `install_hooks` subscribes callbacks
+that push every event into the daemon, and the daemon's
+`ConcernInjection` is captured onto `installed.pending`. Your host
+then picks it up at the **two materialisation points** OpenCOAT
+cares about:
+
+- `installed.apply_to(context)` — fold every buffered advice row
+  into a mutable host context (prompt slots, memory slots, …)
+- `installed.guard_tool_call(call)` — decode `TOOL_GUARD` advice
+  into a structured outcome you can branch on (`outcome.blocked` →
+  refuse; `outcome.arguments` → dispatch with rewrites;
+  `outcome.notes` → audit-only annotations)
 
 ### Step 4b — OpenClaw host plugin (optional)
 
@@ -189,17 +257,39 @@ from opencoat_plugin.bootstrap_opencoat import install
 
 installed = install(your_openclaw_host)   # default: daemon at $OPENCOAT_DAEMON_URL
 try:
-    your_openclaw_host.run()              # drive the agent normally
+    while turn := your_openclaw_host.next_turn():
+        # 1. events flow into the daemon automatically through the
+        #    install_hooks subscriptions; concerns activate inside it.
+        turn.run_until_prompt()
+
+        # 2. fold every active advice row into the prompt context
+        #    BEFORE calling the LLM. Empty buffer → identity.
+        turn.prompt_ctx = installed.apply_to(turn.prompt_ctx)
+
+        # 3. before dispatching each pending tool call, ask OpenCOAT
+        #    whether any TOOL_GUARD advice applies. None → default-allow.
+        for call in turn.pending_tool_calls():
+            outcome = installed.guard_tool_call(call)
+            if outcome is not None and outcome.blocked:
+                turn.refuse(call, reason=outcome.block_reason)
+            elif outcome is not None:
+                turn.dispatch(call["name"], outcome.arguments, notes=outcome.notes)
+            else:
+                turn.dispatch(call["name"], call["arguments"])
 finally:
     installed.uninstall()
 ```
 
 `install()` connects to the running daemon over HTTP (the same daemon
 you started in Step 2), so concerns + DCN state are shared with
-`opencoat concern …` / `opencoat dcn …`. For a one-process unit test
-where you don't want a daemon, swap `install()` for
-`install_in_process()` — same signature, plus a bundled
-`OpenCOATRuntime` is returned.
+`opencoat concern …` / `opencoat dcn …`. The two pickup points
+(`apply_to` / `guard_tool_call`) are where OpenCOAT's advice materialises
+back into your host — without them you'll see activations in the DCN
+log but no visible change to the agent's prompt or tool dispatch.
+
+For a one-process unit test where you don't want a daemon, swap
+`install()` for `install_in_process()` — same signature + pickup API,
+plus a bundled `OpenCOATRuntime` is returned.
 
 For a non-OpenClaw host, swap `openclaw` for `custom` — the same four
 files, with the adapter and joinpoint mapping stubbed for you to fill
@@ -313,7 +403,7 @@ opencoat-runtime-host` and the skill is re-tagged.
 | `python demo_host.py` raises `ModuleNotFoundError: opencoat_runtime_host_sdk` | `pip install` of `opencoat-runtime-host` missing — see Step 1 |
 | `Client.connect(…)` raises `HostTransportConnectionError` | daemon down or bound on another port; `opencoat runtime status` is the truth |
 | `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
-| `bootstrap_opencoat.install()` does nothing visible | host did not subscribe to `agent.before_tool_call` — see the cookbook block at the bottom of [concerns.md](concerns.md) |
+| `bootstrap_opencoat.install()` does nothing visible | host loop never calls `installed.apply_to(prompt_ctx)` / `installed.guard_tool_call(call)` — see Step 4b for the canonical loop and [concerns.md](concerns.md) for the cookbook |
 | daemon refuses to start because PID file exists | stale PID → `rm .opencoat/opencoat.pid && opencoat runtime up …` |
 
 Anything else: `opencoat inspect joinpoints` and
