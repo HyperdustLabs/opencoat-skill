@@ -1,0 +1,85 @@
+name: Deploy Cloudflare Worker
+
+# Deploy the opencoat-skill-proxy worker whenever:
+#   * the worker source itself changes (push to ``main``)
+#   * any of the skill files change — content-update pushes already
+#     reach agents through the worker's cache invalidation, but
+#     deploying the worker again is cheap and guarantees the
+#     deployment manifest reflects the freshest content link.
+#
+# Secrets required (set under Settings → Secrets and variables →
+# Actions → New repository secret):
+#
+#   CLOUDFLARE_API_TOKEN  — token with "Edit Cloudflare Workers"
+#                           permission scoped to the opencoat.ai
+#                           zone. See ../DEPLOY.md for the exact
+#                           Cloudflare dashboard path.
+#   CLOUDFLARE_ACCOUNT_ID — the account id Cloudflare shows in the
+#                           sidebar of any zone view.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "worker/**"
+      - "SKILL.md"
+      - "README.md"
+      - "skill.json"
+      - "concerns.md"
+      - "inspection.md"
+      - "rules.md"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy worker
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          command: deploy
+
+      - name: Verify routes serve fresh content
+        # Smoke-check every route lands a 200 + the right Content-
+        # Type. Fails the deploy if any route returns the wrong
+        # body or a non-200. The five-second sleep lets the
+        # Cloudflare edge propagate the new deployment.
+        run: |
+          sleep 5
+          set -e
+          BASE=https://www.opencoat.ai
+          for path in SKILL.md skill.md skill.json concerns.md inspection.md rules.md README.md readme.md; do
+            ct=$(curl -sSL -o /dev/null -w '%{http_code} %{content_type}' "$BASE/$path")
+            echo "  $path  →  $ct"
+            case "$ct" in
+              "200 text/markdown; charset=utf-8") ;;
+              "200 application/json; charset=utf-8") ;;
+              *) echo "FAIL: $path returned '$ct'"; exit 1 ;;
+            esac
+          done
+          echo "all 8 skill routes healthy"

@@ -27,7 +27,44 @@ This skill is the "5-minute install" that makes the runtime visible:
 6. tear down.
 
 > Source repo: <https://github.com/HyperdustLabs/OpenCOAT>  
-> Skill repo:  <https://github.com/HyperdustLabs/opencoat-skill>
+> Skill repo:  <https://github.com/HyperdustLabs/opencoat-skill>  
+> Skill served at: <https://www.opencoat.ai/SKILL.md>
+
+---
+
+## Self-install (for AI agents)
+
+If you're an AI coding agent and you've been pointed at this skill,
+you only need one input — `https://www.opencoat.ai/SKILL.md` — and
+you can install the rest yourself. Drop the eight skill files into
+whatever your host calls its skills directory (Cursor:
+`~/.cursor/skills/opencoat/`, Claude Code: `~/.claude/skills/opencoat/`,
+etc.) and reload:
+
+```bash
+DEST="${SKILLS_DIR:-$HOME/.cursor/skills}/opencoat"
+mkdir -p "$DEST"
+for f in SKILL.md concerns.md inspection.md rules.md skill.json; do
+  curl -fsSL "https://www.opencoat.ai/$f" -o "$DEST/$f"
+done
+echo "installed opencoat skill → $DEST"
+```
+
+Equivalent one-liner if you only need to read the skill in-process
+(no on-disk install):
+
+```text
+Read https://www.opencoat.ai/SKILL.md and follow the Quick start.
+```
+
+Each URL is a thin proxy onto this repo's `main` branch — see
+[`DEPLOY.md`](DEPLOY.md) for the worker + CDN setup. `curl -I` any
+URL to see the `X-Skill-Source: github:HyperdustLabs/opencoat-skill@main/<file>`
+header that records exactly what you fetched.
+
+After the files are in place, jump straight to **Quick start** below
+— it tells you what to install on the user's machine to make the
+runtime real.
 
 ---
 

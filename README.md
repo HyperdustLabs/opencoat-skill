@@ -37,8 +37,12 @@ opencoat-skill/
 ├── inspection.md                  # read-only inspection commands
 ├── concerns.md                    # authoring patterns + recipe gallery
 ├── rules.md                       # safety rules the host must respect
+├── DEPLOY.md                      # one-time CF Worker + DNS setup
+├── worker/                        # Cloudflare Worker source (deploys via CI)
 ├── LICENSE                        # Apache-2.0
-└── .github/workflows/verify.yml   # CI: parse skill.json + link integrity
+└── .github/workflows/
+    ├── verify.yml                 # CI: parse skill.json + link integrity
+    └── deploy-worker.yml          # CI: redeploy worker on skill / worker push
 ```
 
 ## Install (per-agent)
@@ -50,8 +54,23 @@ opencoat-skill/
 | Claude Code | `~/.claude/skills/opencoat/` |
 | Codex | `~/.codex/skills/opencoat/` |
 
-Either clone this repo into the path above, or use your agent's
-skill installer pointing at this repo URL.
+Three install paths, pick whichever fits the agent:
+
+1. **Self-install from the website** — point the agent at
+   `https://www.opencoat.ai/SKILL.md` and tell it to "read the skill
+   and follow the install instructions". The agent fetches all five
+   skill files (`SKILL.md`, `concerns.md`, `inspection.md`,
+   `rules.md`, `skill.json`) from `https://www.opencoat.ai/<file>`,
+   drops them into its skills directory, then walks the user
+   through the runtime install. This is the most "Moltbook-shaped"
+   path and the one the website is optimized for. The Cloudflare
+   Worker + DNS setup that powers these URLs is documented in
+   [`DEPLOY.md`](DEPLOY.md) — once for the maintainer, never for
+   the user.
+2. **Clone the repo** into the agent path above. Useful if you want
+   to track skill changes with `git pull`.
+3. **Skill installer** — if your agent has a built-in skill
+   installer (Cursor, Codex), point it at this repo URL.
 
 ## Versioning
 
