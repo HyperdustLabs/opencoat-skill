@@ -7,10 +7,17 @@ Drop this skill into any agent that supports the agent-skill
 convention (Cursor, Claude Code, Codex, …) and the agent will know
 how to:
 
-- install `opencoat-runtime-cli` via `pipx`,
-- scaffold an OpenClaw-shaped host plugin,
-- start a local daemon,
-- import three dramatic demo concerns, and
+- install `opencoat-runtime` + `opencoat-runtime-host` (today
+  straight from `main`, via three `pip install
+  "git+https://github.com/HyperdustLabs/OpenCOAT.git#subdirectory=…"`
+  lines for `opencoat-runtime-protocol`, `opencoat-runtime`, and
+  `opencoat-runtime-host` — PyPI publication is pending, after which
+  the block flips to `pipx install opencoat-runtime`),
+- start a local daemon (zero-config HTTP on `127.0.0.1:7878`),
+- import three dramatic demo concerns,
+- emit joinpoints from any host (universal `Client` +
+  `JoinpointEmitter` path) or scaffold an OpenClaw plugin
+  (`opencoat plugin install openclaw`), and
 - inspect the resulting Deep Concern Network.
 
 ## Layout
@@ -40,7 +47,8 @@ skill installer pointing at this repo URL.
 
 ## Versioning
 
-This skill tracks the major version of `opencoat-runtime-cli`. See
+This skill tracks the major version of `opencoat-runtime` (which ships
+the daemon + the `opencoat` CLI in one wheel as of 0.1.0). See
 [`skill.json`](skill.json) `compatible_with` for the exact minimum
 versions of each upstream package.
 
