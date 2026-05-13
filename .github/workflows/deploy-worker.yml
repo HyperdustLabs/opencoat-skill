@@ -42,11 +42,17 @@ jobs:
       run:
         working-directory: worker
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          # Node 24 is the GHA default from 2026-06-02. Anything
+          # below v5 of checkout / setup-node and below v4 of
+          # wrangler-action still declares ``runs: node20`` in its
+          # action.yml, so the runner forces them to Node 24 with
+          # a deprecation warning. The versions here are the
+          # Node-24-native majors.
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: worker/package-lock.json
 
@@ -57,7 +63,7 @@ jobs:
         run: npm run typecheck
 
       - name: Deploy
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
