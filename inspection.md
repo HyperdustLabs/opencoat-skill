@@ -83,6 +83,39 @@ Replay always uses `MemoryConcernStore` + `MemoryDCNStore` + the
 deterministic `StubLLMClient`, so it never touches the live daemon's
 state — safe to run while the daemon is up.
 
+## LLM credentials (no keys in chat)
+
+Coding agents must **not** ask users to paste `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`
+/ Azure secrets into an agent chat. Use a **local terminal** and on-disk files
+instead.
+
+**Probe** (daemon HTTP JSON-RPC must be up — default `http://127.0.0.1:7878/rpc`):
+
+```bash
+curl -sS -X POST http://127.0.0.1:7878/rpc \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"runtime.llm_info","params":{}}'
+```
+
+If `"real": false` and `"label"` mentions `stub`, configure credentials **outside chat**:
+
+```bash
+opencoat configure llm          # wizard: ~/.opencoat/opencoat.env or inline YAML
+opencoat service restart        # or: runtime down && runtime up
+```
+
+**Non-interactive** (human runs in a shell that **already** exports the key — the
+agent never pastes the secret):
+
+```bash
+opencoat configure llm --non-interactive --provider openai --openai-api-key "$OPENAI_API_KEY"
+```
+
+**`opencoat service install` + env-file mode:** the generated LaunchAgent / systemd
+unit does not load `~/.opencoat/opencoat.env` automatically. Prefer **inline**
+wizard mode for unattended services, or extend the plist/unit with the same
+variables the wizard prints. See `opencoat configure llm` footer text after it runs.
+
 ## Daemon health
 
 Independent of the data plane:

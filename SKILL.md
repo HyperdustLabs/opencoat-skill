@@ -7,7 +7,9 @@ description: >-
   wants reusable safety rails (block destructive shell calls), prompt-level
   policies, memory-write annotations, or a Deep Concern Network they can
   inspect and replay across sessions. After `pipx install`, run `opencoat runtime up`
-  then `opencoat service install` so the daemon autostarts at login/boot.
+  then `opencoat service install` so the daemon autostarts at login/boot. AI agents
+  must never ask users to paste LLM API keys into chat — use `opencoat configure llm`
+  in the user's terminal instead.
 ---
 
 # OpenCOAT — Concern-Oriented Agent Thinking Runtime
@@ -37,7 +39,7 @@ This skill is the "5-minute install" that makes the runtime visible:
 
 If you're an AI coding agent and you've been pointed at this skill,
 you only need one input — `https://www.opencoat.ai/SKILL.md` — and
-you can install the rest yourself. Drop the eight skill files into
+you can install the rest yourself. Drop the six skill files into
 whatever your host calls its skills directory (Cursor:
 `~/.cursor/skills/opencoat/`, Claude Code: `~/.claude/skills/opencoat/`,
 etc.) and reload:
@@ -60,7 +62,7 @@ Read https://www.opencoat.ai/SKILL.md and follow the Quick start.
 ```
 
 Each URL is a thin proxy onto this repo's `main` branch — see
-[`DEPLOY.md`](DEPLOY.md) for the worker + CDN setup. `curl -I` any
+[`DEPLOY.md`](https://github.com/HyperdustLabs/opencoat-skill/blob/main/DEPLOY.md) for the worker + CDN setup. `curl -I` any
 URL to see the `X-Skill-Source: github:HyperdustLabs/opencoat-skill@main/<file>`
 header that records exactly what you fetched.
 
@@ -77,6 +79,7 @@ Copy this checklist and walk through it top-to-bottom:
 ```text
 - [ ] Step 1: install the CLI + host SDK
 - [ ] Step 2: start the daemon + OS autostart (LaunchAgent / systemd user)
+- [ ] Step 2b: verify LLM wiring (see **LLM credentials check** — no API keys in chat)
 - [ ] Step 3: import the 3 demo concerns
 - [ ] Step 4a: `opencoat demo` — see concerns change host behavior
 - [ ] Step 4b (optional): wire an OpenClaw host plugin
@@ -175,6 +178,24 @@ mkdir -p ~/.opencoat
 opencoat runtime up
 opencoat runtime status
 ```
+
+### LLM credentials check (**agents: never ask for keys in chat**)
+
+After Step 2, confirm the daemon is not stuck on a **stub** LLM (no real
+provider credentials). **Do not** ask the user to paste API keys into this
+chat — use a local terminal and `opencoat configure llm` instead.
+
+**Quick probe** (default JSON-RPC URL):
+
+```bash
+curl -sS -X POST http://127.0.0.1:7878/rpc \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"runtime.llm_info","params":{}}'
+```
+
+If `"real": false`, walk the human through the recipes in
+[inspection.md — LLM credentials](inspection.md#llm-credentials-no-keys-in-chat)
+(wizard, non-interactive shell-only path, and `opencoat service install` caveats).
 
 ### Step 3 — import the 3 demo concerns
 
@@ -390,7 +411,8 @@ Use this skill when **any** of these are true:
 
 - The user asks to "install OpenCOAT" / "set up the OpenCOAT runtime"
   / "wire concerns into my agent" / **enable daemon autostart** /
-  **login or boot persistence**.
+  **login or boot persistence** / **fix stub LLM** / **configure API keys
+  without pasting them in chat**.
 - The user wants a quick reproducible demo of joinpoint / pointcut /
   advice / weaving on top of an existing host agent.
 - The user references a `concern.upsert` failure, a missing
@@ -403,8 +425,9 @@ Do **not** use this skill for:
 
 - Generic "agent design" or "prompt engineering" questions unrelated
   to OpenCOAT.
-- LLM provider setup (`OPENAI_API_KEY` etc.) — that's the host
-  agent's responsibility, not OpenCOAT's.
+- Collecting or troubleshooting **raw secrets** inside the agent chat
+  — redirect to `opencoat configure llm` / local shell instead (see
+  [rules.md](rules.md) Rule 8).
 - Issues in the upstream `opencoat-runtime-*` Python packages
   themselves — file those at
   <https://github.com/HyperdustLabs/OpenCOAT/issues>.
@@ -435,7 +458,7 @@ venv. Both paths give the same CLI surface.
 | `opencoat runtime up` hangs | port 7878 in use → pass `--port 17890` (or another) and re-run `status` with the same flag |
 | `opencoat: command not found` | pipx env not on `PATH` → `pipx ensurepath` then reopen the shell, or fall back to Step 1b's venv |
 | `opencoat demo` raises `ModuleNotFoundError: opencoat_runtime_host_sdk` | `pipx inject opencoat-runtime opencoat-runtime-host` was skipped — re-run that command |
-| `opencoat concern extract` returns `0 candidate(s)` and the banner shows `llm: stub-fallback (degraded — …)` | no real LLM creds in env → `export OPENAI_API_KEY=...` (or `ANTHROPIC_API_KEY` / `AZURE_OPENAI_*`) and restart the daemon |
+| `opencoat concern extract` returns `0 candidate(s)` and the banner shows `llm: stub-fallback (degraded — …)` | follow **LLM credentials check** — `opencoat configure llm` in a **local terminal** (never paste keys into chat); restart daemon / service |
 | `Client.connect(…)` raises `HostTransportConnectionError` | daemon down or bound on another port; `opencoat runtime status` is the truth |
 | `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
 | `bootstrap_opencoat.install()` does nothing visible | host loop never calls `installed.apply_to(prompt_ctx)` / `installed.guard_tool_call(call)` — see Step 4b for the canonical loop and [concerns.md](concerns.md) for the cookbook |
