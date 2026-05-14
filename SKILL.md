@@ -161,6 +161,19 @@ Default PID file is `~/.opencoat/opencoat.pid` — you only need `--pid-file` if
 you override it. `runtime up` double-forks so the process is not tied to this
 shell.
 
+**PyPI / CLI drift:** `opencoat service …` (LaunchAgent / systemd autostart)
+ships in **`opencoat-runtime` 0.1.2+**. If `opencoat service` is missing
+(unknown subcommand / parser error), upgrade the CLI env:
+
+```bash
+pip install -U 'opencoat-runtime>=0.1.2' 'opencoat-runtime-host>=0.1.2'
+# pipx:
+pipx upgrade opencoat-runtime && pipx inject opencoat-runtime opencoat-runtime-host
+```
+
+Until then, keep using `opencoat runtime up` + `opencoat runtime status` and
+start the daemon manually after reboot (no OS-level autostart).
+
 **Custom sqlite paths or HTTP bind:** run `opencoat configure daemon` (and
 optionally `opencoat configure llm`), then:
 
