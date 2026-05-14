@@ -75,6 +75,14 @@ HTTP `health.ping` over the PID file. A stale PID file (e.g. after a
 `SIGKILL`) is harmless once the new daemon binds the listener;
 deleting the stale file is safe before `runtime up`.
 
+## Rule 8 — AI assistants must not collect LLM API keys in chat
+
+Coding agents following this skill **must not** ask the human to paste
+`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, Azure secrets, or any bearer token
+into the chat transcript. Keys belong in the operator's **local shell**
+(`opencoat configure llm`, `~/.opencoat/opencoat.env`, shell profile, or
+inline YAML via the same wizard) — never in a shared agent thread.
+
 ---
 
 ## When in doubt

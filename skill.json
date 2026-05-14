@@ -1,7 +1,7 @@
 {
   "name": "opencoat",
-  "version": "0.5.0",
-  "description": "Install and use OpenCOAT — concern-driven joinpoints / pointcuts / advice / weaving on a host agent. After pipx install, run `opencoat runtime up` then `opencoat service install` for login/boot autostart.",
+  "version": "0.5.1",
+  "description": "Install and use OpenCOAT — concern-driven joinpoints / pointcuts / advice / weaving on a host agent. After pipx install: runtime up + service install for autostart. Agents must never ask users to paste LLM keys in chat — use opencoat configure llm in the user's terminal.",
   "author": "HyperdustLabs",
   "license": "Apache-2.0",
   "homepage": "https://www.opencoat.ai",
