@@ -207,7 +207,11 @@ After Step 2, confirm the daemon is not stuck on a **stub** LLM (no real
 provider credentials). **Do not** ask the user to paste API keys into this
 chat — use a local terminal and `opencoat configure llm` instead.
 
-The wizard's **env-file** mode writes `~/.opencoat/opencoat.env`; the daemon merges **allow-listed** LLM keys on startup (`runtime up` / `opencoat service`). `source` is optional (shell-only). Details: [inspection.md — LLM credentials](inspection.md#llm-credentials-no-keys-in-chat).
+The wizard's **env-file** mode writes `~/.opencoat/opencoat.env`. The daemon
+merges **allow-listed** LLM keys from that file on startup (same for
+`opencoat runtime up` and `opencoat service`), so operators usually do **not**
+need to `source` it before starting the daemon. Optional: `source` it in your
+shell if you want matching exports for other local commands.
 
 **Quick probe** (default JSON-RPC URL):
 
@@ -350,10 +354,11 @@ opencoat concern list --lifecycle-state active
 opencoat dcn activation-log --limit 20
 ```
 
-Sample activation log after `demo_host.py` (run locally for full rows):
+Sample activation log after `demo_host.py`:
 
 ```text
-2026-05-13T08:39:35  demo-memory-tag   …  score=0.675
+2026-05-13T08:39:35  demo-memory-tag   62515cdf-…  score=0.675
+2026-05-13T08:39:35  demo-prompt-prefix 7a221311-…  score=0.500
 ```
 
 For a graph view:
