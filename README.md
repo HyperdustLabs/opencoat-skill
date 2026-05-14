@@ -13,7 +13,7 @@ how to:
   and `pipx inject opencoat-runtime opencoat-runtime-host` wires the
   host SDK into the same env so the demo's lazy imports succeed
   (`opencoat-runtime-protocol` comes along transitively),
-- start a local daemon (zero-config HTTP on `127.0.0.1:7878`),
+- start a local daemon (zero-config HTTP on `127.0.0.1:7878/rpc`) and register **OS autostart** via `opencoat service install`,
 - import three dramatic demo concerns,
 - close the full loop with one command — `opencoat demo` fires three
   events through `install_hooks` and uses the pickup API
@@ -37,6 +37,7 @@ opencoat-skill/
 ├── inspection.md                  # read-only inspection commands
 ├── concerns.md                    # authoring patterns + recipe gallery
 ├── rules.md                       # safety rules the host must respect
+├── bootstrap_daemon.sh            # post-pipx: runtime up + service install
 ├── DEPLOY.md                      # one-time CF Worker + DNS setup
 ├── worker/                        # Cloudflare Worker source (deploys via CI)
 ├── LICENSE                        # Apache-2.0

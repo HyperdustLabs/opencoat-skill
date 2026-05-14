@@ -6,7 +6,8 @@ description: >-
   agent (Cursor, Claude Code, OpenClaw, LangGraph, custom). Use when the user
   wants reusable safety rails (block destructive shell calls), prompt-level
   policies, memory-write annotations, or a Deep Concern Network they can
-  inspect and replay across sessions.
+  inspect and replay across sessions. After `pipx install`, run `opencoat runtime up`
+  then `opencoat service install` so the daemon autostarts at login/boot.
 ---
 
 # OpenCOAT — Concern-Oriented Agent Thinking Runtime
@@ -20,7 +21,7 @@ sits between the host's prompt/tool loop and the model.
 This skill is the "5-minute install" that makes the runtime visible:
 
 1. install the CLI + host SDK,
-2. start a local daemon (zero-config HTTP on `127.0.0.1:7878`),
+2. start a local daemon (zero-config HTTP on `127.0.0.1:7878/rpc`) **and** register OS autostart (`opencoat service install` on macOS / Linux),
 3. import the 3 dramatic demo concerns,
 4. emit a few joinpoints and watch them light up activations,
 5. inspect the Deep Concern Network (DCN),
@@ -44,9 +45,10 @@ etc.) and reload:
 ```bash
 DEST="${SKILLS_DIR:-$HOME/.cursor/skills}/opencoat"
 mkdir -p "$DEST"
-for f in SKILL.md concerns.md inspection.md rules.md skill.json; do
+for f in SKILL.md concerns.md inspection.md rules.md skill.json bootstrap_daemon.sh; do
   curl -fsSL "https://www.opencoat.ai/$f" -o "$DEST/$f"
 done
+chmod +x "$DEST/bootstrap_daemon.sh" 2>/dev/null || true
 echo "installed opencoat skill → $DEST"
 ```
 
@@ -74,7 +76,7 @@ Copy this checklist and walk through it top-to-bottom:
 
 ```text
 - [ ] Step 1: install the CLI + host SDK
-- [ ] Step 2: start the daemon
+- [ ] Step 2: start the daemon + OS autostart (LaunchAgent / systemd user)
 - [ ] Step 3: import the 3 demo concerns
 - [ ] Step 4a: `opencoat demo` — see concerns change host behavior
 - [ ] Step 4b (optional): wire an OpenClaw host plugin
@@ -128,43 +130,51 @@ opencoat --version    # → 0.1.x
 The CLI works identically; the difference is just *where* the SDK
 ends up on `sys.path`.
 
-### Step 2 — start the daemon (long-running, persistent)
+### Step 2 — start the daemon + OS autostart (long-running, persistent)
 
-The daemon's bundled default config ships `ipc.http.enabled: true` on
-`127.0.0.1:7878` with in-process stores. Flip it to sqlite-backed
-storage under `~/.opencoat/` so concerns survive across restarts, then
-bring it up:
+The bundled daemon defaults (current `opencoat-runtime`) enable HTTP JSON-RPC
+on `127.0.0.1:7878/rpc` and **sqlite** persistence under `~/.opencoat/`. After
+Step 1, bring the daemon up and register a user-level autostart unit so it
+survives terminal closes **and** host-agent (Cursor / OpenClaw / …) restarts.
 
-```bash
-opencoat configure daemon                                       # writes ~/.opencoat/daemon.yaml
-opencoat runtime up  --config ~/.opencoat/daemon.yaml \
-                     --pid-file ~/.opencoat/opencoat.pid
-opencoat runtime status --pid-file ~/.opencoat/opencoat.pid
-# expect: endpoint=http://127.0.0.1:7878/rpc · pid=<NNNN> · state=running
-```
-
-`runtime up` double-forks the daemon so it stays alive after this
-shell — that's by design. Leave it running between host-agent
-sessions; concerns + DCN activation log persist in
-`~/.opencoat/*.sqlite`. Pass `--port 17890` (or any free port) if
-7878 is already in use; logs go to stderr until you wire `--log-file`.
-
-**One-off hermetic run (no on-disk state):** skip `configure daemon`
-entirely and drop `--config` from the commands above. The bundled
-default already enables HTTP on `127.0.0.1:7878` with in-process
-stores, so this works without any config file:
+**Recommended one-shot (copy-paste):**
 
 ```bash
 mkdir -p ~/.opencoat
-opencoat runtime up      --pid-file ~/.opencoat/opencoat.pid
-opencoat runtime status  --pid-file ~/.opencoat/opencoat.pid
-# expect: endpoint=http://127.0.0.1:7878/rpc · pid=<NNNN> · state=running
+opencoat runtime up
+opencoat runtime status
+opencoat service install    # macOS LaunchAgent · Linux systemd --user
+opencoat service status
 ```
 
-Concerns + DCN live in memory and are gone the moment you
-`runtime down` (or the host reboots). That's the right mode for
-hermetic CI / `pytest` / a one-shot demo — but not for actual usage
-across host-agent sessions.
+Or run the bundled helper from an OpenCOAT git checkout:
+`bash integrations/opencoat-skill/bootstrap_daemon.sh` (same commands inside).
+
+Default PID file is `~/.opencoat/opencoat.pid` — you only need `--pid-file` if
+you override it. `runtime up` double-forks so the process is not tied to this
+shell.
+
+**Custom sqlite paths or HTTP bind:** run `opencoat configure daemon` (and
+optionally `opencoat configure llm`), then:
+
+```bash
+opencoat runtime up --config ~/.opencoat/daemon.yaml
+opencoat service install --config ~/.opencoat/daemon.yaml
+```
+
+Pass `--port` / `--host` to `runtime up` / `status` if 7878 is busy.
+
+**Hermetic CI / pytest / no autostart:** do **not** run `opencoat service
+install` inside automated tests. For in-process tests that call
+`load_config()`, set `OPENCOAT_TEST_MEMORY_STORES=1` so stores stay in RAM and
+never touch `~/.opencoat/*.sqlite`. For a disposable daemon without OS
+service registration:
+
+```bash
+mkdir -p ~/.opencoat
+opencoat runtime up
+opencoat runtime status
+```
 
 ### Step 3 — import the 3 demo concerns
 
@@ -343,9 +353,12 @@ this one stopped.
 If you really do want to stop it (e.g. freeing port 7878):
 
 ```bash
-opencoat runtime down --pid-file ~/.opencoat/opencoat.pid
-deactivate                                # leave the venv
+opencoat service stop        # unload LaunchAgent / systemd user unit (keeps files)
+opencoat runtime down        # default pid file ~/.opencoat/opencoat.pid
+deactivate                   # leave the venv (Step 1b only)
 ```
+
+To remove autostart entirely: `opencoat service uninstall`.
 
 The PID file is unlinked on a clean exit; if the daemon was
 `SIGKILL`'d, delete it manually.
@@ -376,7 +389,8 @@ safety rules around `TOOL_GUARD` and `MEMORY_WRITE_GUARD` live in
 Use this skill when **any** of these are true:
 
 - The user asks to "install OpenCOAT" / "set up the OpenCOAT runtime"
-  / "wire concerns into my agent".
+  / "wire concerns into my agent" / **enable daemon autostart** /
+  **login or boot persistence**.
 - The user wants a quick reproducible demo of joinpoint / pointcut /
   advice / weaving on top of an existing host agent.
 - The user references a `concern.upsert` failure, a missing
@@ -426,6 +440,8 @@ venv. Both paths give the same CLI surface.
 | `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
 | `bootstrap_opencoat.install()` does nothing visible | host loop never calls `installed.apply_to(prompt_ctx)` / `installed.guard_tool_call(call)` — see Step 4b for the canonical loop and [concerns.md](concerns.md) for the cookbook |
 | daemon refuses to start because PID file exists | stale PID → `rm ~/.opencoat/opencoat.pid && opencoat runtime up …` |
+| `opencoat service install` fails on Linux | ensure `systemctl --user` exists; for boot-without-login run `loginctl enable-linger "$USER"` once |
+| `opencoat service install` skipped in CI | intentional — only run on a real macOS / Linux user desktop or server |
 
 Anything else: `opencoat inspect joinpoints` and
 `opencoat inspect pointcuts` are dependency-free and confirm the

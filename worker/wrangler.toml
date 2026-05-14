@@ -5,7 +5,7 @@
 # `https://www.<host>/SKILL.md`, etc.).
 #
 # Strikingly continues to serve everything else on www.opencoat.ai —
-# the worker only intercepts the seven skill paths listed in
+# the worker only intercepts the nine skill paths listed in
 # ``routes`` below. Nothing else on the marketing site changes.
 #
 # Deploy via the bundled GitHub Action (.github/workflows/deploy-worker.yml),
@@ -32,6 +32,7 @@ routes = [
   { pattern = "www.opencoat.ai/rules.md",      zone_name = "opencoat.ai" },
   { pattern = "www.opencoat.ai/README.md",     zone_name = "opencoat.ai" },
   { pattern = "www.opencoat.ai/readme.md",     zone_name = "opencoat.ai" },
+  { pattern = "www.opencoat.ai/bootstrap_daemon.sh", zone_name = "opencoat.ai" },
 ]
 
 # The branch / repo the worker proxies. Pinning to ``main`` means
