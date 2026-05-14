@@ -54,11 +54,17 @@ chmod +x "$DEST/bootstrap_daemon.sh" 2>/dev/null || true
 echo "installed opencoat skill → $DEST"
 ```
 
-Equivalent one-liner if you only need to read the skill in-process
-(no on-disk install):
+Equivalent directive if the skill URL is the only input (no copied skill
+files on disk yet) — you must still **run** OpenCOAT on the user's machine,
+not only read the doc:
 
 ```text
-Read https://www.opencoat.ai/SKILL.md and follow the Quick start.
+Read https://www.opencoat.ai/SKILL.md, then execute every **Quick start**
+step on the user's machine until OpenCOAT is actually running: pipx install +
+inject, `opencoat runtime up` + `opencoat service install`, the LLM credentials
+check (`runtime.llm_info` / `opencoat configure llm` in a local terminal — never
+collect API keys in chat), `opencoat concern import --demo`, and `opencoat demo`
+to verify. Do not stop after skimming the checklist.
 ```
 
 Each URL is a thin proxy onto this repo's `main` branch — see
@@ -66,9 +72,8 @@ Each URL is a thin proxy onto this repo's `main` branch — see
 URL to see the `X-Skill-Source: github:HyperdustLabs/opencoat-skill@main/<file>`
 header that records exactly what you fetched.
 
-After the files are in place, jump straight to **Quick start** below
-— it tells you what to install on the user's machine to make the
-runtime real.
+After the skill files are on disk, execute **Quick start** below on the
+user's machine — the goal is a live daemon + demo pass, not a passive read-through.
 
 ---
 
