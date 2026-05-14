@@ -4,8 +4,10 @@ The 5-minute install skill for [OpenCOAT](https://github.com/HyperdustLabs/OpenC
 the Open Concern-Oriented Agent Thinking Runtime.
 
 Drop this skill into any agent that supports the agent-skill
-convention (Cursor, Claude Code, Codex, …) and the agent will know
-how to:
+convention (Cursor, Claude Code, Codex, …). The **entire** host→agent
+instruction can be a single line (see `SKILL.md` §Canonical host prompt); all
+requirements for the agent live in `SKILL.md` and linked files. The skill tells
+the agent how to:
 
 - install `opencoat-runtime` from
   [PyPI](https://pypi.org/project/opencoat-runtime/) — one
