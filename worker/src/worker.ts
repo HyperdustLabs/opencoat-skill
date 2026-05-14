@@ -9,7 +9,7 @@
  * Where ``<repo-file>`` is ``SKILL.md`` for both ``/SKILL.md`` and the
  * lowercase Moltbook-style alias ``/skill.md`` (and similarly
  * ``README.md`` ↔ ``/readme.md``). Every other path is rejected with
- * 404 — the worker only intercepts the seven routes declared in
+ * 404 — the worker only intercepts the nine routes declared in
  * ``wrangler.toml``, so Cloudflare never even invokes us for the
  * Strikingly-hosted marketing pages.
  *
@@ -54,11 +54,13 @@ const PATH_MAP: Record<string, string> = {
   "rules.md": "rules.md",
   "README.md": "README.md",
   "readme.md": "README.md",
+  "bootstrap_daemon.sh": "bootstrap_daemon.sh",
 };
 
 function contentTypeFor(repoPath: string): string {
   if (repoPath.endsWith(".json")) return "application/json; charset=utf-8";
   if (repoPath.endsWith(".md")) return "text/markdown; charset=utf-8";
+  if (repoPath.endsWith(".sh")) return "text/plain; charset=utf-8";
   return "text/plain; charset=utf-8";
 }
 

@@ -28,6 +28,7 @@ on:
       - "concerns.md"
       - "inspection.md"
       - "rules.md"
+      - "bootstrap_daemon.sh"
       - ".github/workflows/deploy-worker.yml"
   workflow_dispatch:
 
@@ -101,13 +102,13 @@ jobs:
           }
 
           fail=0
-          for path in SKILL.md skill.md skill.json concerns.md inspection.md rules.md README.md readme.md; do
+          for path in SKILL.md skill.md skill.json concerns.md inspection.md rules.md README.md readme.md bootstrap_daemon.sh; do
             ok=0
             delay=2
             for attempt in 1 2 3 4 5 6; do
               ct=$(probe "$BASE/$path")
               case "$ct" in
-                "200 text/markdown; charset=utf-8"|"200 application/json; charset=utf-8")
+                "200 text/markdown; charset=utf-8"|"200 application/json; charset=utf-8"|"200 text/plain; charset=utf-8")
                   echo "  $path  →  $ct  (attempt $attempt)"
                   ok=1
                   break
@@ -129,4 +130,4 @@ jobs:
           if [ "$fail" -ne 0 ]; then
             exit 1
           fi
-          echo "all 8 skill routes healthy"
+          echo "all 9 skill routes healthy"
