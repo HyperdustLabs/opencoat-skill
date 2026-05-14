@@ -1,16 +1,30 @@
 ---
 name: opencoat
 description: >-
-  Install and use OpenCOAT — the Open Concern-Oriented Agent Thinking Runtime —
-  to add concern-driven joinpoint / pointcut / advice / weaving on top of a host
-  agent (Cursor, Claude Code, OpenClaw, LangGraph, custom). Use when the user
-  wants reusable safety rails (block destructive shell calls), prompt-level
-  policies, memory-write annotations, or a Deep Concern Network they can
-  inspect and replay across sessions. After `pipx install`, run `opencoat runtime up`
-  then `opencoat service install` so the daemon autostarts at login/boot. AI agents
-  must never ask users to paste LLM API keys into chat — use `opencoat configure llm`
-  in the user's terminal instead.
+  Hosts send one line: Read https://www.opencoat.ai/SKILL.md to install and use OpenCOAT.
+  The skill defines the full agent contract (run Quick start on the user's machine,
+  daemon + autostart, LLM checks without keys in chat, demo). Also: concern-driven
+  joinpoints / pointcuts / advice / weaving on Cursor, Claude Code, OpenClaw, LangGraph, custom.
 ---
+
+## Canonical host prompt (copy verbatim)
+
+The human may send **only** this line to their host agent — no other
+instructions are required; everything else is in this document and linked
+files:
+
+```text
+Read https://www.opencoat.ai/SKILL.md to install and use OpenCOAT.
+```
+
+### Agent contract
+
+If that sentence is your **sole** instruction, **fetch** this URL (and pull
+companion files when this SKILL tells you to), then **run** OpenCOAT on the
+user's machine per **Quick start** until the daemon is healthy and the demo
+path succeeds — not a passive read-through. Security and LLM rules (including
+**never asking for API keys in chat**) live here and in [rules.md](rules.md);
+the human does not need to paste them again.
 
 # OpenCOAT — Concern-Oriented Agent Thinking Runtime
 
@@ -37,11 +51,8 @@ This skill is the "5-minute install" that makes the runtime visible:
 
 ## Self-install (for AI agents)
 
-If you're an AI coding agent and you've been pointed at this skill,
-you only need one input — `https://www.opencoat.ai/SKILL.md` — and
-you can install the rest yourself. Drop the six skill files into
-whatever your host calls its skills directory (Cursor:
-`~/.cursor/skills/opencoat/`, Claude Code: `~/.claude/skills/opencoat/`,
+Drop the six skill files into whatever your host calls its skills directory
+(Cursor: `~/.cursor/skills/opencoat/`, Claude Code: `~/.claude/skills/opencoat/`,
 etc.) and reload:
 
 ```bash
@@ -54,26 +65,14 @@ chmod +x "$DEST/bootstrap_daemon.sh" 2>/dev/null || true
 echo "installed opencoat skill → $DEST"
 ```
 
-Equivalent directive if the skill URL is the only input (no copied skill
-files on disk yet) — you must still **run** OpenCOAT on the user's machine,
-not only read the doc:
-
-```text
-Read https://www.opencoat.ai/SKILL.md, then execute every **Quick start**
-step on the user's machine until OpenCOAT is actually running: pipx install +
-inject, `opencoat runtime up` + `opencoat service install`, the LLM credentials
-check (`runtime.llm_info` / `opencoat configure llm` in a local terminal — never
-collect API keys in chat), `opencoat concern import --demo`, and `opencoat demo`
-to verify. Do not stop after skimming the checklist.
-```
-
 Each URL is a thin proxy onto this repo's `main` branch — see
 [`DEPLOY.md`](https://github.com/HyperdustLabs/opencoat-skill/blob/main/DEPLOY.md) for the worker + CDN setup. `curl -I` any
 URL to see the `X-Skill-Source: github:HyperdustLabs/opencoat-skill@main/<file>`
 header that records exactly what you fetched.
 
 After the skill files are on disk, execute **Quick start** below on the
-user's machine — the goal is a live daemon + demo pass, not a passive read-through.
+user's machine — the canonical one-line prompt above does not change that
+obligation.
 
 ---
 
