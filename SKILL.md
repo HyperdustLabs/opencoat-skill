@@ -65,14 +65,7 @@ chmod +x "$DEST/bootstrap_daemon.sh" 2>/dev/null || true
 echo "installed opencoat skill → $DEST"
 ```
 
-Each URL is a thin proxy onto this repo's `main` branch — see
-[`DEPLOY.md`](https://github.com/HyperdustLabs/opencoat-skill/blob/main/DEPLOY.md) for the worker + CDN setup. `curl -I` any
-URL to see the `X-Skill-Source: github:HyperdustLabs/opencoat-skill@main/<file>`
-header that records exactly what you fetched.
-
-After the skill files are on disk, execute **Quick start** below on the
-user's machine — the canonical one-line prompt above does not change that
-obligation.
+URLs proxy this repo's `main` ([`DEPLOY.md`](DEPLOY.md)). Then run **Quick start** on the user's machine.
 
 ---
 
@@ -86,7 +79,8 @@ Copy this checklist and walk through it top-to-bottom:
 - [ ] Step 2b: verify LLM wiring (see **LLM credentials check** — no API keys in chat)
 - [ ] Step 3: import the 3 demo concerns
 - [ ] Step 4a: `opencoat demo` — see concerns change host behavior
-- [ ] Step 4b (optional): wire an OpenClaw host plugin
+- [ ] Step 4b (optional): Python OpenClaw scaffold (`subscribe` hosts)
+- [ ] Step 4c (optional): OpenClaw **gateway** TS bridge (TUI / Telegram)
 - [ ] Step 5: inspect the DCN
 - [ ] Step 6: leave the daemon running (optional teardown)
 ```
@@ -275,11 +269,14 @@ The two pickup points to remember:
   refuse; `outcome.arguments` → dispatch with rewrites;
   `outcome.notes` → audit-only annotations).
 
-### Step 4b — OpenClaw host plugin (optional)
+### Step 4b — Python OpenClaw scaffold (optional)
 
-If you're integrating OpenCOAT into a real OpenClaw-shaped host agent
-(anything that exposes `subscribe(event_name, callback) -> unsubscribe`),
-scaffold a plugin:
+**Not** the OpenClaw gateway. Use when **you** own the host loop with
+`subscribe(event_name, callback) -> unsubscribe` (custom agent, tests,
+`examples/04`). The gateway (TUI, Telegram) loads TS plugins from
+`~/.openclaw/extensions/` — use **Step 4c** instead.
+
+Scaffold:
 
 ```bash
 opencoat plugin install openclaw --out ./opencoat_plugin
@@ -294,51 +291,40 @@ Generates four lint-clean files in `./opencoat_plugin/`:
 | `host_adapter.py` | maps host events → OpenCOAT joinpoints (you only edit this) |
 | `concerns.py` | three starter concerns (edit freely) |
 
-Then, from your host's startup code:
+Wire at host startup: `install(your_openclaw_host)` → per turn call
+`apply_to(prompt_ctx)` before the LLM and `guard_tool_call(call)` before
+tools → `uninstall()` on shutdown. Full loop: [concerns.md](concerns.md)
+(OpenClaw cookbook). Uses the Step 2 daemon over HTTP; without the two
+pickup calls you only see DCN activations, not prompt/tool changes.
+`install_in_process()` for tests without a daemon; `custom` host for
+non-OpenClaw `subscribe` shapes.
 
-```python
-from opencoat_plugin.bootstrap_opencoat import install
+### Step 4c — OpenClaw gateway bridge (optional)
 
-installed = install(your_openclaw_host)   # default: daemon at $OPENCOAT_DAEMON_URL
-try:
-    while turn := your_openclaw_host.next_turn():
-        # 1. events flow into the daemon automatically through the
-        #    install_hooks subscriptions; concerns activate inside it.
-        turn.run_until_prompt()
+For the **real OpenClaw gateway** (`openclaw tui`, Telegram, …). Install
+the TS plugin from the [OpenCOAT](https://github.com/HyperdustLabs/OpenCOAT)
+monorepo (`integrations/openclaw-opencoat-bridge/`) — **not** Step 4b.
 
-        # 2. fold every active advice row into the prompt context
-        #    BEFORE calling the LLM. Empty buffer → identity.
-        turn.prompt_ctx = installed.apply_to(turn.prompt_ctx)
+Prerequisites: daemon up (Step 2), concerns in store (Step 3 or
+`concern extract`), OpenClaw **≥ 2026.3.24**.
 
-        # 3. before dispatching each pending tool call, ask OpenCOAT
-        #    whether any TOOL_GUARD advice applies. None → default-allow.
-        for call in turn.pending_tool_calls():
-            outcome = installed.guard_tool_call(call)
-            if outcome is not None and outcome.blocked:
-                turn.refuse(call, reason=outcome.block_reason)
-            elif outcome is not None:
-                turn.dispatch(call["name"], outcome.arguments, notes=outcome.notes)
-            else:
-                turn.dispatch(call["name"], call["arguments"])
-finally:
-    installed.uninstall()
+```bash
+openclaw plugins install -l /path/to/OpenCOAT/integrations/openclaw-opencoat-bridge
+openclaw gateway restart
+openclaw plugins list   # @hyperdust/opencoat-bridge → loaded
+grep opencoat-bridge ~/.openclaw/logs/gateway.log   # registered
 ```
 
-`install()` connects to the running daemon over HTTP (the same daemon
-you started in Step 2), so concerns + DCN state are shared with
-`opencoat concern …` / `opencoat dcn …`. The two pickup points
-(`apply_to` / `guard_tool_call`) are where OpenCOAT's advice materialises
-back into your host — without them you'll see activations in the DCN
-log but no visible change to the agent's prompt or tool dispatch.
+In `~/.openclaw/openclaw.json`, enable `@hyperdust/opencoat-bridge` with
+`hooks.allowPromptInjection: true` and `config.daemonUrl`:
+`http://127.0.0.1:7878/rpc`. Config id uses a **slash**; symlink dir is flat
+(`~/.openclaw/extensions/@hyperdust-opencoat-bridge`). Set `daemonUrl` in
+plugin config only (OpenClaw install blocks `process.env` + network in plugins).
 
-For a one-process unit test where you don't want a daemon, swap
-`install()` for `install_in_process()` — same signature + pickup API,
-plus a bundled `OpenCOATRuntime` is returned.
-
-For a non-OpenClaw host, swap `openclaw` for `custom` — the same four
-files, with the adapter and joinpoint mapping stubbed for you to fill
-in, plus a `daemon_client()` helper that returns a ready-to-use
-`Client`.
+Hooks: `message_received`→`on_user_input`, `before_prompt_build`→`before_response`,
+`before_tool_call`, `session_start`→`runtime_start`. After chat, expect
+`jp-oc-*` in `opencoat dcn activation-log`. Monorepo README:
+`integrations/openclaw-opencoat-bridge/README.md`.
 
 ### Step 5 — inspect
 
@@ -461,7 +447,8 @@ venv. Both paths give the same CLI surface.
 | `opencoat concern extract` returns `0 candidate(s)` and the banner shows `llm: stub-fallback (degraded — …)` | follow **LLM credentials check** — `opencoat configure llm` in a **local terminal** (never paste keys into chat); restart daemon / service |
 | `Client.connect(…)` raises `HostTransportConnectionError` | daemon down or bound on another port; `opencoat runtime status` is the truth |
 | `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
-| `bootstrap_opencoat.install()` does nothing visible | host loop never calls `installed.apply_to(prompt_ctx)` / `installed.guard_tool_call(call)` — see Step 4b for the canonical loop and [concerns.md](concerns.md) for the cookbook |
+| `bootstrap_opencoat.install()` does nothing visible | host loop never calls `apply_to` / `guard_tool_call` — Step 4b; gateway weave → Step **4c** |
+| OpenClaw chat: no weave / `plugin not found` | Step **4c** + gateway restart; id `@hyperdust/opencoat-bridge`; not Step 4b scaffold |
 | daemon refuses to start because PID file exists | stale PID → `rm ~/.opencoat/opencoat.pid && opencoat runtime up …` |
 | `opencoat service install` fails on Linux (bind / address already in use) | A daemon from `runtime up` is still holding 7878 — `opencoat runtime down` then re-run `service install` (the bundled `bootstrap_daemon.sh` does this). |
 | `opencoat service install` fails on Linux (other) | ensure `systemctl --user` exists; for boot-without-login run `loginctl enable-linger "$USER"` once |

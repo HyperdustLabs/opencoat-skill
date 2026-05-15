@@ -25,9 +25,10 @@ the agent how to:
   read. `opencoat demo --in-proc` runs the same tour without a
   daemon (no setup), and `opencoat demo --script-out demo_host.py`
   dumps the equivalent Python for users who want a template to
-  adapt for a real host. Scaffold an OpenClaw plugin with
-  `opencoat plugin install openclaw` for the same loop pre-wired,
-  then
+  adapt for a real host. Python scaffold: `opencoat plugin install openclaw`;
+  OpenClaw gateway: TS bridge in
+  [OpenCOAT/integrations/openclaw-opencoat-bridge](https://github.com/HyperdustLabs/OpenCOAT/tree/main/integrations/openclaw-opencoat-bridge)
+  (`openclaw plugins install -l …`). Then
 - inspect the resulting Deep Concern Network.
 
 ## Layout
