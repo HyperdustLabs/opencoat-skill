@@ -45,7 +45,7 @@ This skill is the "5-minute install" that makes the runtime visible:
 
 > Source repo: <https://github.com/HyperdustLabs/OpenCOAT>  
 > Skill repo:  <https://github.com/HyperdustLabs/opencoat-skill>  
-> Skill served at: <https://www.opencoat.ai/SKILL.md>
+> Skill served at: <https://www.opencoat.ai/SKILL.md> (PyPI `0.1.3`)
 
 ---
 
