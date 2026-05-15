@@ -1,6 +1,6 @@
 {
   "name": "opencoat",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "One-line host prompt: Read https://www.opencoat.ai/SKILL.md to install and use OpenCOAT. Full agent contract is in SKILL.md (run Quick start, autostart, no API keys in chat). Concern-driven joinpoints / weaving for host agents.",
   "author": "HyperdustLabs",
   "license": "Apache-2.0",
@@ -29,9 +29,9 @@
     "bootstrap_daemon.sh"
   ],
   "compatible_with": {
-    "opencoat-runtime": ">=0.1.2",
-    "opencoat-runtime-host": ">=0.1.2",
-    "opencoat-runtime-protocol": ">=0.1.2"
+    "opencoat-runtime": ">=0.1.3",
+    "opencoat-runtime-host": ">=0.1.3",
+    "opencoat-runtime-protocol": ">=0.1.3"
   },
   "tracks": "opencoat-runtime@major"
 }
