@@ -163,7 +163,7 @@ ships in **`opencoat-runtime` 0.1.2+**. If `opencoat service` is missing
 (unknown subcommand / parser error), upgrade the CLI env:
 
 ```bash
-pip install -U 'opencoat-runtime>=0.1.2' 'opencoat-runtime-host>=0.1.2'
+pip install -U 'opencoat-runtime>=0.1.3' 'opencoat-runtime-host>=0.1.3'
 # pipx:
 pipx upgrade opencoat-runtime && pipx inject opencoat-runtime opencoat-runtime-host
 ```
@@ -422,13 +422,17 @@ Do **not** use this skill for:
 
 ## Compatibility & versions
 
-This skill tracks `opencoat-runtime` major. Today:
+This skill tracks `opencoat-runtime` major. **Current PyPI:** `0.1.3`
+(ConcernBuilder MVP, gpt-5/o-series `max_completion_tokens`, concern.extract
+timeout). OpenClaw **gateway** weave uses the TS bridge in the
+[OpenCOAT monorepo](https://github.com/HyperdustLabs/OpenCOAT/tree/main/integrations/openclaw-opencoat-bridge)
+(Step 4c), not the runtime wheel alone.
 
 | component | min supported | source |
 | --- | --- | --- |
-| `opencoat-runtime` | `0.1.0` | [PyPI](https://pypi.org/project/opencoat-runtime/) |
-| `opencoat-runtime-host` | `0.1.0` | [PyPI](https://pypi.org/project/opencoat-runtime-host/) |
-| `opencoat-runtime-protocol` | `0.1.0` | [PyPI](https://pypi.org/project/opencoat-runtime-protocol/) — pulled transitively |
+| `opencoat-runtime` | `0.1.3` | [PyPI](https://pypi.org/project/opencoat-runtime/) |
+| `opencoat-runtime-host` | `0.1.3` | [PyPI](https://pypi.org/project/opencoat-runtime-host/) |
+| `opencoat-runtime-protocol` | `0.1.3` | [PyPI](https://pypi.org/project/opencoat-runtime-protocol/) — pulled transitively |
 
 Step 1 installs from PyPI via `pipx`; if you need to embed the runtime
 inside a Python application (so its code can `import
