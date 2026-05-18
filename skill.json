@@ -1,7 +1,7 @@
 {
   "name": "opencoat",
-  "version": "0.5.9",
-  "description": "One-line host prompt: Read https://www.opencoat.ai/SKILL.md to install and use OpenCOAT. Full agent contract is in SKILL.md (run Quick start, autostart, no API keys in chat). Concern-driven joinpoints / weaving for host agents.",
+  "version": "0.5.10",
+  "description": "One-line host prompt: Read https://www.opencoat.ai/SKILL.md to install and use OpenCOAT. Agent must execute Quick start on the user's machine (not only print steps). Autostart, no API keys in chat, OpenClaw bridge Step 4c.",
   "author": "HyperdustLabs",
   "license": "Apache-2.0",
   "homepage": "https://www.opencoat.ai",

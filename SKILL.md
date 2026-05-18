@@ -26,6 +26,28 @@ path succeeds — not a passive read-through. Security and LLM rules (including
 **never asking for API keys in chat**) live here and in [rules.md](rules.md);
 the human does not need to paste them again.
 
+**Execute, do not delegate back to the human.** If the skill URL is the only
+input (no copied skill files on disk yet), you must still **run** OpenCOAT on
+the user's machine — not summarize the install guide:
+
+```text
+Read https://www.opencoat.ai/SKILL.md, then execute every Quick start step on
+the user's machine until OpenCOAT is actually running: pipx install +
+pipx inject opencoat-runtime-host (or pip install in a venv), opencoat runtime
+up + opencoat service install, LLM check (runtime.llm_info / opencoat configure
+llm in a local terminal — never collect API keys in chat), opencoat concern
+import --demo, and opencoat demo to verify. For OpenClaw gateway (TUI /
+Telegram), also Step 4c: openclaw plugins install -l …/openclaw-opencoat-bridge,
+openclaw gateway restart, confirm [opencoat-bridge] registered in gateway.log.
+Do not stop after skimming the checklist. Do not only paste bash blocks for the
+user to run unless shell/exec is impossible — then say so explicitly.
+```
+
+**OpenClaw gateway note:** Weaving in chat (`<OpenCOAT>` blocks) comes from the
+**bridge plugin** + daemon (Step 4c). That is not the same as completing Quick
+start. If `opencoat --version` or `runtime status` would fail, you have not
+finished the contract — use shell and run the steps.
+
 # OpenCOAT — Concern-Oriented Agent Thinking Runtime
 
 OpenCOAT runs alongside any host agent and rewrites its joinpoints
@@ -65,7 +87,9 @@ chmod +x "$DEST/bootstrap_daemon.sh" 2>/dev/null || true
 echo "installed opencoat skill → $DEST"
 ```
 
-URLs proxy this repo's `main` ([`DEPLOY.md`](DEPLOY.md)). Then run **Quick start** on the user's machine.
+URLs proxy this repo's `main` ([`DEPLOY.md`](DEPLOY.md)). After files are on disk,
+execute **Quick start** on the user's machine — the canonical one-line prompt does
+not change that obligation.
 
 ---
 
