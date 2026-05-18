@@ -16,6 +16,8 @@ files:
 ```text
 Read https://www.opencoat.ai/SKILL.md to install and use OpenCOAT.
 You MUST use shell and run every Quick start step; do not only print commands.
+If OpenClaw is installed, auto-install the gateway bridge (Step 4c) — resolve the
+monorepo path yourself; do not ask me for it or wait for "go ahead".
 ```
 
 (URL-only also binds via **Agent contract** below, but hosts that only read the
@@ -40,16 +42,37 @@ the user's machine until OpenCOAT is actually running: pipx install +
 pipx inject opencoat-runtime-host (or pip install in a venv), opencoat runtime
 up + opencoat service install, LLM check (runtime.llm_info / opencoat configure
 llm in a local terminal — never collect API keys in chat), opencoat concern
-import --demo, and opencoat demo to verify. Then **Step 5** inspection
-(`opencoat dcn activation-log --limit 20`, `opencoat concern list`) without
-asking permission. If `openclaw` is on PATH or `~/.openclaw` exists, **Step 4c**
-is mandatory next (not optional): resolve the OpenCOAT monorepo, run bridge
-install + `openclaw gateway restart`, grep `opencoat-bridge` in gateway.log.
+import --demo, and opencoat demo to verify. If `openclaw` is on PATH or
+`~/.openclaw` exists, run **Step 4c immediately** (before claiming done): shell
+`test -d ~/COAT/integrations/openclaw-opencoat-bridge` and other paths in
+**Resolve OpenCOAT monorepo** — never ask the human for the repo path first.
+Then `install-local.sh`, `openclaw plugins install -l`, `openclaw gateway restart`,
+grep `opencoat-bridge` in gateway.log. Only then **Step 5** inspection
+(`opencoat dcn activation-log --limit 20`, `opencoat concern list`).
 Do not stop after skimming the checklist. Do not only paste bash blocks for the
 user to run unless shell/exec is impossible — then say so explicitly.
-**Forbidden:** ending with “If you want, I can run inspection…” or “proceed to
-4c if you have the repo path” — you must run those steps yourself.
+**Forbidden:** “If you want, I can run inspection / proceed to 4c”; “tell me where
+the repo is”; “say go ahead”; reporting “Steps 1–5 done” while 4c is skipped on
+an OpenClaw host.
 ```
+
+### Definition of done
+
+| Host | Done only when |
+| --- | --- |
+| Any | Steps 1, 2, 2b, 3, 4a succeed; Step 5 commands ran; daemon + autostart healthy |
+| OpenClaw (`openclaw` or `~/.openclaw`) | **Also** Step 4c: `@hyperdustlabs/opencoat-bridge` loaded + `[opencoat-bridge] registered` in gateway.log |
+
+PyPI runtime alone is **not** “full OpenCOAT on OpenClaw”. Do not mark the install
+complete until the row for your host is satisfied.
+
+### Anti-pattern (do not repeat)
+
+Bad (seen in real OpenClaw sessions): finish pipx + daemon + demo, offer “Step 4c
+if you give me the monorepo path”, then after `~/COAT` is found still say “say
+go ahead and I’ll install”. **Why it’s wrong:** Step 4c is part of install on
+OpenClaw; `~/COAT` is in the resolver list — run `ls ~/COAT/integrations/...`
+yourself before asking anyone anything.
 
 **OpenClaw gateway note:** Weaving in chat (`<OpenCOAT>` blocks) comes from the
 **bridge plugin** + daemon (Step 4c). That is not the same as completing Quick
@@ -113,9 +136,9 @@ Copy this checklist and walk through it top-to-bottom:
 - [ ] Step 2b: verify LLM wiring (see **LLM credentials check** — no API keys in chat)
 - [ ] Step 3: import the 3 demo concerns
 - [ ] Step 4a: `opencoat demo` — see concerns change host behavior
-- [ ] Step 4b (optional): Python OpenClaw scaffold (`subscribe` hosts only)
-- [ ] Step 4c (**required** if `openclaw` or `~/.openclaw`): gateway TS bridge — run automatically, do not ask
-- [ ] Step 5: inspect the DCN (`dcn activation-log`, `concern list`) — run automatically after 4a/4c
+- [ ] Step 4c (**required** if `openclaw` or `~/.openclaw`): gateway TS bridge — **before** you say “install complete”
+- [ ] Step 4b (optional): Python OpenClaw scaffold (`subscribe` hosts only) — skip for gateway/TUI
+- [ ] Step 5: inspect the DCN (`dcn activation-log`, `concern list`) — **after** 4a and 4c (when OpenClaw)
 - [ ] Step 6: leave the daemon running (optional teardown)
 ```
 
@@ -210,7 +233,7 @@ Agents must **not** ask the human for the repo path. Resolve in shell (first hit
 ```bash
 COAT_ROOT="${OPENCOAT_REPO:-}"
 if [[ -z "$COAT_ROOT" ]]; then
-  for d in "$(pwd)" "$(pwd)/OpenCOAT" "$HOME/COAT" "${OPENCOAT_WORKSPACE:-$(pwd)}/.opencoat/OpenCOAT"; do
+  for d in "$(pwd)" "$(pwd)/OpenCOAT" "$HOME/COAT" "$HOME/OpenCOAT" "${OPENCOAT_WORKSPACE:-$(pwd)}/.opencoat/OpenCOAT"; do
     [[ -f "$d/integrations/openclaw-opencoat-bridge/package.json" ]] && COAT_ROOT="$(cd "$d" && pwd)" && break
   done
 fi
