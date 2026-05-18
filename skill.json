@@ -1,7 +1,7 @@
 {
   "name": "opencoat",
-  "version": "0.5.10",
-  "description": "One-line host prompt: Read https://www.opencoat.ai/SKILL.md to install and use OpenCOAT. Agent must execute Quick start on the user's machine (not only print steps). Autostart, no API keys in chat, OpenClaw bridge Step 4c.",
+  "version": "0.5.11",
+  "description": "Canonical host prompt: Read opencoat.ai/SKILL.md + MUST use shell and run Quick start (not only print commands). Autostart, no API keys in chat, OpenClaw bridge 4c.",
   "author": "HyperdustLabs",
   "license": "Apache-2.0",
   "homepage": "https://www.opencoat.ai",

@@ -1,7 +1,7 @@
 ---
 name: opencoat
 description: >-
-  Hosts send one line: Read https://www.opencoat.ai/SKILL.md to install and use OpenCOAT.
+  Hosts send one line (URL + must use shell / run Quick start). Full contract in SKILL.md.
   The skill defines the full agent contract (run Quick start on the user's machine,
   daemon + autostart, LLM checks without keys in chat, demo). Also: concern-driven
   joinpoints / pointcuts / advice / weaving on Cursor, Claude Code, OpenClaw, LangGraph, custom.
@@ -9,13 +9,17 @@ description: >-
 
 ## Canonical host prompt (copy verbatim)
 
-The human may send **only** this line to their host agent — no other
+The human may send **only** this block to their host agent — no other
 instructions are required; everything else is in this document and linked
 files:
 
 ```text
 Read https://www.opencoat.ai/SKILL.md to install and use OpenCOAT.
+You MUST use shell and run every Quick start step; do not only print commands.
 ```
+
+(URL-only also binds via **Agent contract** below, but hosts that only read the
+URL often skip execution — keep the shell line in the paste.)
 
 ### Agent contract
 
