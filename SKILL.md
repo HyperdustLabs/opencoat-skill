@@ -16,7 +16,7 @@ files:
 ```text
 Read https://www.opencoat.ai/SKILL.md to install and use OpenCOAT.
 You MUST use shell and run every Quick start step; do not only print commands.
-If OpenClaw is installed, auto-install the gateway bridge (Step 4c) — resolve the
+If OpenClaw is installed, auto-install the gateway bridge (Step 5) — resolve the
 monorepo path yourself; do not ask me for it or wait for "go ahead".
 ```
 
@@ -43,16 +43,16 @@ pipx inject opencoat-runtime-host (or pip install in a venv), opencoat runtime
 up + opencoat service install, LLM check (runtime.llm_info / opencoat configure
 llm in a local terminal — never collect API keys in chat), opencoat concern
 import --demo, and opencoat demo to verify. If `openclaw` is on PATH or
-`~/.openclaw` exists, run **Step 4c immediately** (before claiming done): shell
+`~/.openclaw` exists, run **Step 5 immediately** (before claiming done): shell
 `test -d ~/OpenCOAT/integrations/openclaw-opencoat-bridge` and other paths in
 **Resolve OpenCOAT monorepo** — never ask the human for the repo path first.
 Then `install-local.sh`, `openclaw plugins install -l`, `openclaw gateway restart`,
-grep `opencoat-bridge` in gateway.log. Only then **Step 5** inspection
+grep `opencoat-bridge` in gateway.log. Only then **Step 6** inspection
 (`opencoat dcn activation-log --limit 20`, `opencoat concern list`).
 Do not stop after skimming the checklist. Do not only paste bash blocks for the
 user to run unless shell/exec is impossible — then say so explicitly.
-**Forbidden:** “If you want, I can run inspection / proceed to 4c”; “tell me where
-the repo is”; “say go ahead”; reporting “Steps 1–5 done” while 4c is skipped on
+**Forbidden:** “If you want, I can run inspection / proceed to Step 5”; “tell me where
+the repo is”; “say go ahead”; reporting “Steps 1–4 done” while Step 5 is skipped on
 an OpenClaw host.
 ```
 
@@ -60,23 +60,23 @@ an OpenClaw host.
 
 | Host | Done only when |
 | --- | --- |
-| Any | Steps 1, 2, 2b, 3, 4a succeed; Step 5 commands ran; daemon + autostart healthy |
-| OpenClaw (`openclaw` or `~/.openclaw`) | **Also** Step 4c: `@hyperdustlabs/opencoat-bridge` loaded + `[opencoat-bridge] registered` in gateway.log |
+| Any | Steps 1–4 succeed; Step 6 inspection ran; daemon + autostart healthy |
+| OpenClaw (`openclaw` or `~/.openclaw`) | **Also** Step 5: `@hyperdustlabs/opencoat-bridge` loaded + `[opencoat-bridge] registered` in gateway.log |
 
 PyPI runtime alone is **not** “full OpenCOAT on OpenClaw”. Do not mark the install
 complete until the row for your host is satisfied.
 
 ### Anti-pattern (do not repeat)
 
-Bad (seen in real OpenClaw sessions): finish pipx + daemon + demo, offer “Step 4c
+Bad (seen in real OpenClaw sessions): finish pipx + daemon + demo, offer “Step 5
 if you give me the monorepo path”, then after `~/OpenCOAT` is found still say “say
-go ahead and I’ll install”. **Why it’s wrong:** Step 4c is part of install on
+go ahead and I’ll install”. **Why it’s wrong:** Step 5 is part of install on
 OpenClaw; `~/OpenCOAT` (and legacy `~/COAT`) are in the resolver list — run
 `ls ~/OpenCOAT/integrations/...` or `ls ~/COAT/integrations/...`
 yourself before asking anyone anything.
 
 **OpenClaw gateway note:** Weaving in chat (`<OpenCOAT>` blocks) comes from the
-**bridge plugin** + daemon (Step 4c). That is not the same as completing Quick
+**bridge plugin** + daemon (Step 5). That is not the same as completing Quick
 start. If `opencoat --version` or `runtime status` would fail, you have not
 finished the contract — use shell and run the steps. When OpenClaw is present,
 **install the bridge before declaring done**; do not wait for the human to supply
@@ -92,16 +92,23 @@ sits between the host's prompt/tool loop and the model.
 
 This skill is the "5-minute install" that makes the runtime visible:
 
-1. install the CLI + host SDK,
-2. start a local daemon (zero-config HTTP on `127.0.0.1:7878/rpc`) **and** register OS autostart (`opencoat service install` on macOS / Linux),
-3. import the 3 dramatic demo concerns,
-4. emit a few joinpoints and watch them light up activations,
-5. inspect the Deep Concern Network (DCN),
-6. leave the daemon running (it's long-lived by design — tear down only if you really want to).
+1. install the CLI + host SDK (PyPI),
+2. start a local daemon + OS autostart,
+3. import the 3 demo concerns,
+4. run `opencoat demo`,
+5. install the OpenClaw gateway bridge from the **OpenCOAT monorepo** (when OpenClaw is present),
+6. inspect the DCN and leave the daemon running.
 
-> Source repo: <https://github.com/HyperdustLabs/OpenCOAT>  
-> Skill repo:  <https://github.com/HyperdustLabs/opencoat-skill>  
-> Skill served at: <https://www.opencoat.ai/SKILL.md> (PyPI `0.1.4`)
+> **Two repos, two roles**
+>
+> | Repo | What it is |
+> | --- | --- |
+> | [HyperdustLabs/opencoat-skill](https://github.com/HyperdustLabs/opencoat-skill) | This skill — served at <https://www.opencoat.ai/SKILL.md> |
+> | [HyperdustLabs/OpenCOAT](https://github.com/HyperdustLabs/OpenCOAT) | Runtime + **OpenClaw TS bridge** at `integrations/openclaw-opencoat-bridge/` — clone to **`~/OpenCOAT`** |
+>
+> The bridge does **not** need its own GitHub repo; it ships inside OpenCOAT. PyPI wheels do **not** include the TS plugin.
+
+> Skill CDN tracks PyPI `opencoat-runtime` **0.1.4+**.
 
 ---
 
@@ -132,19 +139,19 @@ not change that obligation.
 Copy this checklist and walk through it top-to-bottom:
 
 ```text
-- [ ] Step 1: install the CLI + host SDK
-- [ ] Step 2: start the daemon + OS autostart (LaunchAgent / systemd user)
-- [ ] Step 2b: verify LLM wiring (see **LLM credentials check** — no API keys in chat)
+- [ ] Step 1: install the CLI + host SDK (pipx)
+- [ ] Step 2: start the daemon + OS autostart (+ verify LLM — no keys in chat)
 - [ ] Step 3: import the 3 demo concerns
-- [ ] Step 4a: `opencoat demo` — see concerns change host behavior
-- [ ] Step 4c (**required** if `openclaw` or `~/.openclaw`): gateway TS bridge — **before** you say “install complete”
-- [ ] Step 4b (optional): Python OpenClaw scaffold (`subscribe` hosts only) — skip for gateway/TUI
-- [ ] Step 5: inspect the DCN (`dcn activation-log`, `concern list`) — **after** 4a and 4c (when OpenClaw)
-- [ ] Step 6: leave the daemon running (optional teardown)
+- [ ] Step 4: opencoat demo
+- [ ] Step 5 (**required** if `openclaw` or `~/.openclaw`): OpenClaw gateway bridge
+- [ ] Step 6: inspect the DCN and leave the daemon running
 ```
 
+**Local paths:** monorepo at `~/OpenCOAT` (`OPENCOAT_ROOT` / resolver below). Runtime
+state (sqlite, PID, config) stays in `~/.opencoat/` — not inside the git tree.
+
 **Agent: run the checklist in order.** Do not offer “I can run inspection next” or
-“proceed to 4c if you have the repo” — execute Steps 4c and 5 yourself when OpenClaw
+“proceed to Step 5 if you have the repo” — execute Steps 5 and 6 yourself when OpenClaw
 is installed.
 
 ### Step 1 — install
@@ -200,7 +207,7 @@ checkout, prefer an **editable** install from that tree instead of only PyPI —
 this is how local dev and OpenClaw sessions on an OpenCOAT workspace are meant to work:
 
 ```bash
-# Resolve OPENCOAT_ROOT — see full resolver in Step 4c; minimal form:
+# Resolve OPENCOAT_ROOT — see full resolver below; minimal form:
 OPENCOAT_ROOT="${OPENCOAT_REPO:-}"
 if [[ -z "$OPENCOAT_ROOT" ]]; then
   for d in "$(pwd)" "$(pwd)/OpenCOAT" "$HOME/OpenCOAT" "$HOME/COAT"; do
@@ -214,7 +221,7 @@ pipx inject  opencoat-runtime -e "$OPENCOAT_ROOT/packages/opencoat-runtime-host"
 opencoat --version
 ```
 
-If there is no checkout but OpenClaw needs the bridge (Step 4c), clone into the
+If there is no checkout but OpenClaw needs the bridge (Step 5), clone into the
 **workspace** (not only `$HOME`):
 
 ```bash
@@ -224,7 +231,7 @@ if [[ ! -f "$OPENCOAT_ROOT/packages/opencoat-runtime/pyproject.toml" ]]; then
   mkdir -p "$(dirname "$OPENCOAT_ROOT")"
   git clone --depth 1 https://github.com/HyperdustLabs/OpenCOAT.git "$OPENCOAT_ROOT"
 fi
-# then Step 1c pipx -e and Step 4c bridge install from $OPENCOAT_ROOT
+# then Step 1c pipx -e and Step 5 bridge install from $OPENCOAT_ROOT
 ```
 
 ### Resolve OpenCOAT monorepo (`OPENCOAT_ROOT`)
@@ -249,7 +256,7 @@ fi
 echo "OPENCOAT_ROOT=${OPENCOAT_ROOT:-<unset>}"
 ```
 
-Use `$OPENCOAT_ROOT` for Step 1c (editable pipx), Step 4c (bridge), and
+Use `$OPENCOAT_ROOT` for Step 1c (editable pipx), Step 5 (bridge), and
 `bash "$OPENCOAT_ROOT/integrations/openclaw-opencoat-bridge/scripts/install-local.sh"`.
 
 ### Step 2 — start the daemon + OS autostart (long-running, persistent)
@@ -272,8 +279,11 @@ opencoat service install    # macOS LaunchAgent · Linux systemd --user
 opencoat service status
 ```
 
-Or run the bundled helper from an OpenCOAT git checkout:
-`bash integrations/opencoat-skill/bootstrap_daemon.sh` (same commands inside).
+Or run the skill helper:
+
+```bash
+bash "${SKILLS_DIR:-$HOME/.cursor/skills}/opencoat/bootstrap_daemon.sh"
+```
 
 Default PID file is `~/.opencoat/opencoat.pid` — you only need `--pid-file` if
 you override it. `runtime up` double-forks so the process is not tied to this
@@ -359,7 +369,7 @@ demo-memory-tag      active   Demo — annotate every memory write
 What each one does, and where it fires, is documented in
 [concerns.md](concerns.md).
 
-### Step 4a — see concerns change host behavior (one line)
+### Step 4 — `opencoat demo`
 
 ```bash
 opencoat demo
@@ -395,45 +405,16 @@ The two pickup points to remember:
   refuse; `outcome.arguments` → dispatch with rewrites;
   `outcome.notes` → audit-only annotations).
 
-### Step 4b — Python OpenClaw scaffold (optional)
-
-**Not** the OpenClaw gateway. Use when **you** own the host loop with
-`subscribe(event_name, callback) -> unsubscribe` (custom agent, tests,
-`examples/04`). The gateway (TUI, Telegram) loads TS plugins from
-`~/.openclaw/extensions/` — use **Step 4c** instead.
-
-Scaffold:
-
-```bash
-opencoat plugin install openclaw --out ./opencoat_plugin
-```
-
-Generates four lint-clean files in `./opencoat_plugin/`:
-
-| file | role |
-| --- | --- |
-| `__init__.py` | makes the directory a package |
-| `bootstrap_opencoat.py` | call once at host startup to register concerns + adapter |
-| `host_adapter.py` | maps host events → OpenCOAT joinpoints (you only edit this) |
-| `concerns.py` | three starter concerns (edit freely) |
-
-Wire at host startup: `install(your_openclaw_host)` → per turn call
-`apply_to(prompt_ctx)` before the LLM and `guard_tool_call(call)` before
-tools → `uninstall()` on shutdown. Full loop: [concerns.md](concerns.md)
-(OpenClaw cookbook). Uses the Step 2 daemon over HTTP; without the two
-pickup calls you only see DCN activations, not prompt/tool changes.
-`install_in_process()` for tests without a daemon; `custom` host for
-non-OpenClaw `subscribe` shapes.
-
-### Step 4c — OpenClaw gateway bridge (**required when OpenClaw is present**)
+### Step 5 — OpenClaw gateway bridge (**required when OpenClaw is present**)
 
 For the **real OpenClaw gateway** (`openclaw tui`, Telegram, …). **Run this
-automatically** after Step 4a when `command -v openclaw` or `~/.openclaw` exists —
+automatically** after Step 4 when `command -v openclaw` or `~/.openclaw` exists —
 do **not** ask “if you want” or “if you have the repo path”. Resolve `OPENCOAT_ROOT`
-(**Resolve OpenCOAT monorepo** above), then install — **not** Step 4b.
+(**Resolve OpenCOAT monorepo** above), then install the **TypeScript plugin** from
+the monorepo — not on ClawHub, not on PyPI.
 
 **Skill files vs bridge (common confusion).** The canonical prompt means **fetch
-this doc and run Quick start + Step 4c** — not “copy SKILL.md into OpenClaw first”.
+this doc and run Quick start + Step 5** — not “copy SKILL.md into OpenClaw first”.
 Gateway weaving uses the **bridge plugin** under `~/.openclaw/extensions/`, not a
 `workspace/skills/opencoat/` folder. If `<OpenCOAT>…</OpenCOAT>` appears in chat but
 the agent says “no opencoat skill installed”, that is normal: concerns are active via
@@ -445,7 +426,7 @@ OpenClaw **≥ 2026.3.24**, `OPENCOAT_ROOT` resolved (clone to workspace `.openc
 if needed).
 
 ```bash
-command -v openclaw >/dev/null || [[ -d "${HOME}/.openclaw" ]] || { echo "skip 4c: no OpenClaw"; exit 0; }
+command -v openclaw >/dev/null || [[ -d "${HOME}/.openclaw" ]] || { echo "skip Step 5: no OpenClaw"; exit 0; }
 
 # OPENCOAT_ROOT — use resolver block from "Resolve OpenCOAT monorepo" (set OPENCOAT_REPO to skip search)
 : "${OPENCOAT_ROOT:?set OPENCOAT_ROOT first — see Resolve OpenCOAT monorepo}"
@@ -470,9 +451,9 @@ Hooks: `message_received`→`on_user_input`, `before_prompt_build`→`before_res
 `jp-oc-*` in `opencoat dcn activation-log`. Monorepo README:
 `integrations/openclaw-opencoat-bridge/README.md`.
 
-### Step 5 — inspect (**required before you report “done”**)
+### Step 6 — inspect and keep running
 
-Run immediately after Step 4a (and Step 4c when OpenClaw is present). Do not ask
+Run inspection immediately after Step 4 (and Step 5 when OpenClaw is present). Do not ask
 the human whether to run inspection — paste the command output in your summary.
 
 See [inspection.md](inspection.md) for the full surface. Minimum:
@@ -494,8 +475,6 @@ For a graph view:
 opencoat dcn export --format dot -o dcn.dot
 dot -Tsvg dcn.dot -o dcn.svg && open dcn.svg
 ```
-
-### Step 6 — keep it running (or tear down)
 
 `opencoat runtime up` double-forked the daemon at Step 2, so it stays
 alive after this terminal closes. **Leave it running** between host-agent
@@ -573,7 +552,7 @@ This skill tracks `opencoat-runtime` major. **Current PyPI:** `0.1.4`
 `declare precedence`, B.AI LLM provider, M6 prerequisite docs). OpenClaw **gateway**
 weave uses the TS bridge in the
 [OpenCOAT monorepo](https://github.com/HyperdustLabs/OpenCOAT/tree/main/integrations/openclaw-opencoat-bridge)
-(Step 4c; live verification checklist §3), not the runtime wheel alone.
+(Step 5; live verification checklist §3), not the runtime wheel alone.
 
 | component | min supported | source |
 | --- | --- | --- |
@@ -598,9 +577,9 @@ venv. Both paths give the same CLI surface.
 | `opencoat concern extract` returns `0 candidate(s)` and the banner shows `llm: stub-fallback (degraded — …)` | follow **LLM credentials check** — `opencoat configure llm` in a **local terminal** (never paste keys into chat); restart daemon / service |
 | `Client.connect(…)` raises `HostTransportConnectionError` | daemon down or bound on another port; `opencoat runtime status` is the truth |
 | `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
-| `bootstrap_opencoat.install()` does nothing visible | host loop never calls `apply_to` / `guard_tool_call` — Step 4b; gateway weave → Step **4c** |
-| OpenClaw chat: no weave / `plugin not found` | Step **4c** + gateway restart; id `@hyperdustlabs/opencoat-bridge`; not Step 4b scaffold |
-| OpenCOAT blocks in chat but agent says “no skill” | Weaving = bridge plugin (Step 4c), not `workspace/skills/opencoat`; run `opencoat --version`, `runtime status`, `grep opencoat-bridge …/gateway.log` |
+| OpenClaw chat: no weave / `plugin not found` | Step **5**: resolve `OPENCOAT_ROOT`, `install-local.sh`, gateway restart; id `@hyperdustlabs/opencoat-bridge` |
+| OpenCOAT blocks in chat but agent says “no skill” | Weaving = bridge plugin (Step 5), not `workspace/skills/opencoat`; run `opencoat --version`, `runtime status`, `grep opencoat-bridge …/gateway.log` |
+| Custom Python `subscribe()` host | `$OPENCOAT_ROOT/examples/04_openclaw_with_runtime` or `opencoat demo --script-out` — see [concerns.md](concerns.md) |
 | daemon refuses to start because PID file exists | stale PID → `rm ~/.opencoat/opencoat.pid && opencoat runtime up …` |
 | `opencoat service install` fails on Linux (bind / address already in use) | A daemon from `runtime up` is still holding 7878 — `opencoat runtime down` then re-run `service install` (the bundled `bootstrap_daemon.sh` does this). |
 | `opencoat service install` fails on Linux (other) | ensure `systemctl --user` exists; for boot-without-login run `loginctl enable-linger "$USER"` once |

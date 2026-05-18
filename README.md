@@ -25,10 +25,10 @@ the agent how to:
   read. `opencoat demo --in-proc` runs the same tour without a
   daemon (no setup), and `opencoat demo --script-out demo_host.py`
   dumps the equivalent Python for users who want a template to
-  adapt for a real host. Python scaffold: `opencoat plugin install openclaw`;
-  OpenClaw gateway: TS bridge in
-  [OpenCOAT/integrations/openclaw-opencoat-bridge](https://github.com/HyperdustLabs/OpenCOAT/tree/main/integrations/openclaw-opencoat-bridge)
-  (`openclaw plugins install -l …`). Then
+  adapt for a real host. OpenClaw gateway: TS bridge in the
+  [OpenCOAT](https://github.com/HyperdustLabs/OpenCOAT) monorepo at
+  `integrations/openclaw-opencoat-bridge/` (clone `~/OpenCOAT`, Step 5 in
+  `SKILL.md` — not a separate repo). Then
 - inspect the resulting Deep Concern Network.
 
 ## Layout
@@ -57,7 +57,7 @@ opencoat-skill/
 | Cursor (project) | `<repo>/.cursor/skills/opencoat/` |
 | Claude Code | `~/.claude/skills/opencoat/` |
 | Codex | `~/.codex/skills/opencoat/` |
-| OpenClaw gateway (TUI / Telegram) | **No skill folder required** — agent must auto-run Step 4c (`install-local.sh` + `openclaw plugins install -l` from resolved `OPENCOAT_REPO` / workspace clone). Optional: `workspace/skills/opencoat/` for always-on instructions |
+| OpenClaw gateway (TUI / Telegram) | **No skill folder required** — agent must auto-run Step 5 (`install-local.sh` from resolved `OPENCOAT_ROOT` / `~/OpenCOAT`). Optional: `workspace/skills/opencoat/` for always-on instructions |
 
 Three install paths, pick whichever fits the agent:
 

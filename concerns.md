@@ -210,98 +210,22 @@ opencoat concern list --tag demo
 
 ---
 
-## Cookbook — wiring `before_tool_call` + the pickup API
+## Embedded Python hosts (not the OpenClaw gateway)
 
-OpenCOAT's loop has two halves on the host side: events go **in** to
-the daemon, and advice has to come back **out** to your host's
-mutable state. The latter is what makes concerns visible at all —
-without the pickup calls, you'll see activations in the DCN log but
-nothing else.
+Telegram / `openclaw tui` use the **TS bridge** (skill Step 5). If you own a
+`subscribe(event, callback)` loop in Python, use the monorepo example:
 
-### a) Subscribe to `before_tool_call`
-
-The OpenClaw scaffold's `DEFAULT_EVENT_NAMES` covers `agent.started`,
-`agent.user_message`, and `agent.memory_write` but **not**
-`agent.before_tool` — pass an extended event list to `install()` so
-the `TOOL_GUARD` recipes above can fire:
-
-```python
-from opencoat_plugin.bootstrap_opencoat import install
-
-installed = install(
-    your_openclaw_host,
-    event_names=(
-        "agent.started",
-        "agent.user_message",
-        "agent.before_tool",        # ← required for TOOL_GUARD recipes
-        "agent.memory_write",
-    ),
-    # daemon_url=...                 # defaults to $OPENCOAT_DAEMON_URL or 127.0.0.1:7878
-)
+```bash
+export OPENCOAT_ROOT="${OPENCOAT_ROOT:-$HOME/OpenCOAT}"
+cd "$OPENCOAT_ROOT" && uv run python -m examples.04_openclaw_with_runtime.main
 ```
 
-### b) Apply the buffered advice in your host loop
+Or export a starter script from the CLI:
 
-`install_hooks` (which `install()` calls under the hood) buffers
-every non-empty `ConcernInjection` the daemon returns into
-`installed.pending`. Your host picks it up at two points:
-
-```python
-try:
-    while turn := your_openclaw_host.next_turn():
-        turn.run_until_prompt()      # events flow → daemon → buffer
-
-        # 1. PROMPT FOLD — apply every active prompt-level advice row
-        #    before calling the LLM. Returns a new context dict;
-        #    the buffered rows are drained so they don't double-apply.
-        turn.prompt_ctx = installed.apply_to(turn.prompt_ctx)
-
-        # 2. TOOL DISPATCH — decode any TOOL_GUARD advice for each
-        #    pending call. ``None`` ⇒ no advice ⇒ default-allow.
-        for call in turn.pending_tool_calls():
-            outcome = installed.guard_tool_call(call)
-            if outcome is not None and outcome.blocked:
-                turn.refuse(call, reason=outcome.block_reason)
-            elif outcome is not None:
-                turn.dispatch(call["name"], outcome.arguments, notes=outcome.notes)
-            else:
-                turn.dispatch(call["name"], call["arguments"])
-finally:
-    installed.uninstall()
+```bash
+opencoat demo --script-out demo_host.py
 ```
 
-That's it. `apply_to()` runs every buffered advice row through
-`OpenClawAdapter.apply_injection` (deep-copying the context, walking
-each advice row's dotted target, merging the content with the right
-weaving mode); `guard_tool_call()` decodes `TOOL_GUARD` advice into
-a structured outcome you can branch on.
-
-### c) `apply_to` knobs worth knowing
-
-- `installed.apply_to(ctx, joinpoint="before_response")` — only
-  fold rows captured for one specific joinpoint. Use when your turn
-  has multiple natural materialisation points (e.g. fold
-  `on_user_input` advice early and `before_response` advice late).
-- `installed.apply_to(ctx, drain=False)` — peek without consuming.
-  Handy for snapshotting or for "what would happen if I applied
-  now?" debug views.
-- `installed.pending` — read-only tuple snapshot of buffered
-  `(joinpoint, injection)` pairs. Useful when wiring telemetry.
-- `installed.clear_pending()` — drop everything. Useful when a turn
-  gets cancelled before reaching its pickup points.
-
-### d) In-process variant for tests
-
-For a one-process unit test where you don't want a daemon, swap
-`install` for `install_in_process` — same pickup API, plus a bundled
-`OpenCOATRuntime` is returned alongside `installed` so you can poke
-the in-memory stores directly:
-
-```python
-from opencoat_plugin.bootstrap_opencoat import install_in_process
-
-runtime, installed = install_in_process(your_openclaw_host)
-# ... drive the host loop with the same apply_to / guard_tool_call
-# pickup points as above; runtime.dcn_store / runtime.concern_store
-# are real in-memory stores you can assert against.
-```
+Both use `opencoat_runtime_host_openclaw.install_hooks` and the pickup API
+(`apply_to`, `guard_tool_call`). For `TOOL_GUARD` recipes, subscribe to
+`agent.before_tool` (or equivalent) in addition to session / user / memory events.

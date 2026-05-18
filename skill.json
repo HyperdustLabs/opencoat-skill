@@ -1,7 +1,7 @@
 {
   "name": "opencoat",
-  "version": "0.5.14",
-  "description": "Shell-run Quick start through demo, auto Step 4c bridge when OpenClaw present, auto Step 5 DCN inspect; workspace monorepo pipx -e + OPENCOAT_ROOT resolver; no ask-if-you-want.",
+  "version": "0.6.0",
+  "description": "Shell-run Quick start Steps 1–6; auto Step 5 OpenClaw TS bridge from ~/OpenCOAT monorepo (no separate bridge repo, no plugin install openclaw); OPENCOAT_ROOT resolver; no ask-if-you-want.",
   "author": "HyperdustLabs",
   "license": "Apache-2.0",
   "homepage": "https://www.opencoat.ai",

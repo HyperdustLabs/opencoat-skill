@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # OpenCOAT — post-install: start daemon + register OS autostart (LaunchAgent / systemd user).
-# Intended to run right after `pipx install opencoat-runtime` + `pipx inject … opencoat-runtime-host`.
+# Run after: pipx install opencoat-runtime && pipx inject opencoat-runtime opencoat-runtime-host
 set -euo pipefail
 
+export OPENCOAT_ROOT="${OPENCOAT_ROOT:-$HOME/OpenCOAT}"
 mkdir -p "${HOME}/.opencoat"
+echo "OPENCOAT_ROOT=${OPENCOAT_ROOT}  (monorepo for Step 5 bridge)"
+echo "Runtime state: ${HOME}/.opencoat/"
 
 echo "==> opencoat runtime up"
 opencoat runtime up
