@@ -310,6 +310,17 @@ For the **real OpenClaw gateway** (`openclaw tui`, Telegram, …). Install
 the TS plugin from the [OpenCOAT](https://github.com/HyperdustLabs/OpenCOAT)
 monorepo (`integrations/openclaw-opencoat-bridge/`) — **not** Step 4b.
 
+**Skill files vs bridge (common confusion).** The canonical one-liner
+(`Read https://www.opencoat.ai/SKILL.md …`) means **fetch this doc and run
+Quick start + Step 4c** — not “copy SKILL.md into OpenClaw first”. Gateway
+weaving uses the **bridge plugin** under `~/.openclaw/extensions/`, not a
+`workspace/skills/opencoat/` folder. If `<OpenCOAT>…</OpenCOAT>` appears in
+chat but the agent says “no opencoat skill installed”, that is normal: concerns
+are active via the plugin + daemon. Optional: mirror the six skill files into
+`workspace/skills/opencoat/` only when you want persistent instructions every
+session without re-fetching. Report install health with shell checks below, not
+by listing the skills directory.
+
 Prerequisites: daemon up (Step 2), concerns in store (Step 3 or
 `concern extract`), OpenClaw **≥ 2026.3.24**.
 
@@ -459,6 +470,7 @@ venv. Both paths give the same CLI surface.
 | `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
 | `bootstrap_opencoat.install()` does nothing visible | host loop never calls `apply_to` / `guard_tool_call` — Step 4b; gateway weave → Step **4c** |
 | OpenClaw chat: no weave / `plugin not found` | Step **4c** + gateway restart; id `@hyperdust/opencoat-bridge`; not Step 4b scaffold |
+| OpenCOAT blocks in chat but agent says “no skill” | Weaving = bridge plugin (Step 4c), not `workspace/skills/opencoat`; run `opencoat --version`, `runtime status`, `grep opencoat-bridge …/gateway.log` |
 | daemon refuses to start because PID file exists | stale PID → `rm ~/.opencoat/opencoat.pid && opencoat runtime up …` |
 | `opencoat service install` fails on Linux (bind / address already in use) | A daemon from `runtime up` is still holding 7878 — `opencoat runtime down` then re-run `service install` (the bundled `bootstrap_daemon.sh` does this). |
 | `opencoat service install` fails on Linux (other) | ensure `systemctl --user` exists; for boot-without-login run `loginctl enable-linger "$USER"` once |
