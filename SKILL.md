@@ -327,14 +327,15 @@ Prerequisites: daemon up (Step 2), concerns in store (Step 3 or
 ```bash
 openclaw plugins install -l /path/to/OpenCOAT/integrations/openclaw-opencoat-bridge
 openclaw gateway restart
-openclaw plugins list   # @hyperdust/opencoat-bridge → loaded
+openclaw plugins list   # @hyperdustlabs/opencoat-bridge → loaded
 grep opencoat-bridge ~/.openclaw/logs/gateway.log   # registered
 ```
 
-In `~/.openclaw/openclaw.json`, enable `@hyperdust/opencoat-bridge` with
+In `~/.openclaw/openclaw.json`, enable `@hyperdustlabs/opencoat-bridge` with
 `hooks.allowPromptInjection: true` and `config.daemonUrl`:
 `http://127.0.0.1:7878/rpc`. Config id uses a **slash**; symlink dir is flat
-(`~/.openclaw/extensions/@hyperdust-opencoat-bridge`). Set `daemonUrl` in
+(`~/.openclaw/extensions/@hyperdustlabs-opencoat-bridge`). Remove legacy
+`@hyperdust/*` plugin entries. Set `daemonUrl` in
 plugin config only (OpenClaw install blocks `process.env` + network in plugins).
 
 Hooks: `message_received`→`on_user_input`, `before_prompt_build`→`before_response`,
@@ -469,7 +470,7 @@ venv. Both paths give the same CLI surface.
 | `Client.connect(…)` raises `HostTransportConnectionError` | daemon down or bound on another port; `opencoat runtime status` is the truth |
 | `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
 | `bootstrap_opencoat.install()` does nothing visible | host loop never calls `apply_to` / `guard_tool_call` — Step 4b; gateway weave → Step **4c** |
-| OpenClaw chat: no weave / `plugin not found` | Step **4c** + gateway restart; id `@hyperdust/opencoat-bridge`; not Step 4b scaffold |
+| OpenClaw chat: no weave / `plugin not found` | Step **4c** + gateway restart; id `@hyperdustlabs/opencoat-bridge`; not Step 4b scaffold |
 | OpenCOAT blocks in chat but agent says “no skill” | Weaving = bridge plugin (Step 4c), not `workspace/skills/opencoat`; run `opencoat --version`, `runtime status`, `grep opencoat-bridge …/gateway.log` |
 | daemon refuses to start because PID file exists | stale PID → `rm ~/.opencoat/opencoat.pid && opencoat runtime up …` |
 | `opencoat service install` fails on Linux (bind / address already in use) | A daemon from `runtime up` is still holding 7878 — `opencoat runtime down` then re-run `service install` (the bundled `bootstrap_daemon.sh` does this). |
