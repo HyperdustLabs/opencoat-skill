@@ -57,7 +57,7 @@ opencoat-skill/
 | Cursor (project) | `<repo>/.cursor/skills/opencoat/` |
 | Claude Code | `~/.claude/skills/opencoat/` |
 | Codex | `~/.codex/skills/opencoat/` |
-| OpenClaw gateway (TUI / Telegram) | **No skill folder required** — `openclaw plugins install -l …/openclaw-opencoat-bridge` (Step 4c). Optional: `workspace/skills/opencoat/` for always-on agent instructions |
+| OpenClaw gateway (TUI / Telegram) | **No skill folder required** — agent must auto-run Step 4c (`install-local.sh` + `openclaw plugins install -l` from resolved `OPENCOAT_REPO` / workspace clone). Optional: `workspace/skills/opencoat/` for always-on instructions |
 
 Three install paths, pick whichever fits the agent:
 
