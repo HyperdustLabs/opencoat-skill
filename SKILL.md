@@ -112,6 +112,24 @@ This skill is the "5-minute install" that makes the runtime visible:
 
 ---
 
+## Monorepo git workflow (HyperdustLabs/OpenCOAT)
+
+When you change the **OpenCOAT git monorepo** (runtime, bridge, `docs/`, …) — not
+when you only run Quick start on a user's machine:
+
+- **Never** `git push origin main`. Every change uses a **feature branch + PR** (CI + paper trail).
+- Flow: `git switch -c feat/…` → edit → `./scripts/verify.sh` → commit →
+  `git push -u origin HEAD` → `gh pr create` → squash-merge after checks green.
+- Rules: [CONTRIBUTING.md](https://github.com/HyperdustLabs/OpenCOAT/blob/main/CONTRIBUTING.md)
+  (§1–§3, §9). In-repo Cursor sessions also load
+  [`.cursor/rules/contributing-pr-only.mdc`](https://github.com/HyperdustLabs/OpenCOAT/blob/main/.cursor/rules/contributing-pr-only.mdc)
+  and [AGENTS.md](https://github.com/HyperdustLabs/OpenCOAT/blob/main/AGENTS.md).
+
+If the user says **commit** or **push** for this repo, default to **branch + PR**,
+not landing on `main`, unless they explicitly ask for a direct push to `main`.
+
+---
+
 ## Self-install (for AI agents)
 
 Drop the six skill files into whatever your host calls its skills directory
