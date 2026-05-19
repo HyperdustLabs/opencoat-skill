@@ -1,7 +1,7 @@
 {
   "name": "opencoat",
-  "version": "0.6.0",
-  "description": "Shell-run Quick start Steps 1–6; auto Step 5 OpenClaw TS bridge from ~/OpenCOAT monorepo (no separate bridge repo, no plugin install openclaw); OPENCOAT_ROOT resolver; no ask-if-you-want.",
+  "version": "0.6.1",
+  "description": "Shell-run Quick start Steps 1–6; auto Step 5 OpenClaw TS bridge from ~/OpenCOAT monorepo; PyPI 0.1.5+; monorepo PR workflow for agents; OPENCOAT_ROOT resolver.",
   "author": "HyperdustLabs",
   "license": "Apache-2.0",
   "homepage": "https://www.opencoat.ai",
@@ -29,9 +29,9 @@
     "bootstrap_daemon.sh"
   ],
   "compatible_with": {
-    "opencoat-runtime": ">=0.1.4",
-    "opencoat-runtime-host": ">=0.1.4",
-    "opencoat-runtime-protocol": ">=0.1.4"
+    "opencoat-runtime": ">=0.1.5",
+    "opencoat-runtime-host": ">=0.1.5",
+    "opencoat-runtime-protocol": ">=0.1.5"
   },
   "tracks": "opencoat-runtime@major"
 }

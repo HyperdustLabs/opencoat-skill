@@ -108,7 +108,25 @@ This skill is the "5-minute install" that makes the runtime visible:
 >
 > The bridge does **not** need its own GitHub repo; it ships inside OpenCOAT. PyPI wheels do **not** include the TS plugin.
 
-> Skill CDN tracks PyPI `opencoat-runtime` **0.1.4+**.
+> Skill CDN tracks PyPI `opencoat-runtime` **0.1.5+**.
+
+---
+
+## Monorepo git workflow (HyperdustLabs/OpenCOAT)
+
+When you change the **OpenCOAT git monorepo** (runtime, bridge, `docs/`, …) — not
+when you only run Quick start on a user's machine:
+
+- **Never** `git push origin main`. Every change uses a **feature branch + PR** (CI + paper trail).
+- Flow: `git switch -c feat/…` → edit → `./scripts/verify.sh` → commit →
+  `git push -u origin HEAD` → `gh pr create` → squash-merge after checks green.
+- Rules: [CONTRIBUTING.md](https://github.com/HyperdustLabs/OpenCOAT/blob/main/CONTRIBUTING.md)
+  (§1–§3, §9). In-repo Cursor sessions also load
+  [AGENTS.md](https://github.com/HyperdustLabs/OpenCOAT/blob/main/AGENTS.md) and
+  [`.cursor/rules/contributing-pr-only.mdc`](https://github.com/HyperdustLabs/OpenCOAT/blob/main/.cursor/rules/contributing-pr-only.mdc).
+
+If the user says **commit** or **push** for this repo, default to **branch + PR**,
+not landing on `main`, unless they explicitly ask for a direct push to `main`.
 
 ---
 
@@ -294,7 +312,7 @@ ships in **`opencoat-runtime` 0.1.2+**. If `opencoat service` is missing
 (unknown subcommand / parser error), upgrade the CLI env:
 
 ```bash
-pip install -U 'opencoat-runtime>=0.1.4' 'opencoat-runtime-host>=0.1.4'
+pip install -U 'opencoat-runtime>=0.1.5' 'opencoat-runtime-host>=0.1.5'
 # pipx:
 pipx upgrade opencoat-runtime && pipx inject opencoat-runtime opencoat-runtime-host
 ```
@@ -547,18 +565,18 @@ Do **not** use this skill for:
 
 ## Compatibility & versions
 
-This skill tracks `opencoat-runtime` major. **Current PyPI:** `0.1.4`
-(JoinpointDiscovery + `messages[]` on OpenClaw bridge, AspectJ-shaped concerns,
-`declare precedence`, B.AI LLM provider, M6 prerequisite docs). OpenClaw **gateway**
-weave uses the TS bridge in the
+This skill tracks `opencoat-runtime` major. **Current PyPI:** `0.1.5`
+(M6 heartbeat workers, joinpoint model ADR-0011 + OpenClaw bridge runtime observers,
+26 plugin hooks, AspectJ concerns, B.AI LLM). OpenClaw **gateway** weave uses the TS
+bridge in the
 [OpenCOAT monorepo](https://github.com/HyperdustLabs/OpenCOAT/tree/main/integrations/openclaw-opencoat-bridge)
 (Step 5; live verification checklist §3), not the runtime wheel alone.
 
 | component | min supported | source |
 | --- | --- | --- |
-| `opencoat-runtime` | `0.1.4` | [PyPI](https://pypi.org/project/opencoat-runtime/) |
-| `opencoat-runtime-host` | `0.1.4` | [PyPI](https://pypi.org/project/opencoat-runtime-host/) |
-| `opencoat-runtime-protocol` | `0.1.4` | [PyPI](https://pypi.org/project/opencoat-runtime-protocol/) — pulled transitively |
+| `opencoat-runtime` | `0.1.5` | [PyPI](https://pypi.org/project/opencoat-runtime/) |
+| `opencoat-runtime-host` | `0.1.5` | [PyPI](https://pypi.org/project/opencoat-runtime-host/) |
+| `opencoat-runtime-protocol` | `0.1.5` | [PyPI](https://pypi.org/project/opencoat-runtime-protocol/) — pulled transitively |
 
 Step 1 installs from PyPI via `pipx`; if you need to embed the runtime
 inside a Python application (so its code can `import
