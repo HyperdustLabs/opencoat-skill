@@ -112,21 +112,7 @@ This skill is the "5-minute install" that makes the runtime visible:
 
 ---
 
-## Monorepo git workflow (HyperdustLabs/OpenCOAT)
-
-When you change the **OpenCOAT git monorepo** (runtime, bridge, `docs/`, …) — not
-when you only run Quick start on a user's machine:
-
-- **Never** `git push origin main`. Every change uses a **feature branch + PR** (CI + paper trail).
-- Flow: `git switch -c feat/…` → edit → `./scripts/verify.sh` → commit →
-  `git push -u origin HEAD` → `gh pr create` → squash-merge after checks green.
-- Rules: [CONTRIBUTING.md](https://github.com/HyperdustLabs/OpenCOAT/blob/main/CONTRIBUTING.md)
-  (§1–§3, §9). In-repo Cursor sessions also load
-  [AGENTS.md](https://github.com/HyperdustLabs/OpenCOAT/blob/main/AGENTS.md) and
-  [`.cursor/rules/contributing-pr-only.mdc`](https://github.com/HyperdustLabs/OpenCOAT/blob/main/.cursor/rules/contributing-pr-only.mdc).
-
-If the user says **commit** or **push** for this repo, default to **branch + PR**,
-not landing on `main`, unless they explicitly ask for a direct push to `main`.
+**Editing the OpenCOAT git repo?** See [contributing.md](contributing.md) (PR-only workflow).
 
 ---
 
@@ -139,7 +125,7 @@ etc.) and reload:
 ```bash
 DEST="${SKILLS_DIR:-$HOME/.cursor/skills}/opencoat"
 mkdir -p "$DEST"
-for f in SKILL.md concerns.md inspection.md rules.md skill.json bootstrap_daemon.sh; do
+for f in SKILL.md concerns.md inspection.md rules.md contributing.md compatibility.md openclaw-bridge.md troubleshooting.md skill.json bootstrap_daemon.sh; do
   curl -fsSL "https://www.opencoat.ai/$f" -o "$DEST/$f"
 done
 chmod +x "$DEST/bootstrap_daemon.sh" 2>/dev/null || true
@@ -252,31 +238,6 @@ fi
 # then Step 1c pipx -e and Step 5 bridge install from $OPENCOAT_ROOT
 ```
 
-### Resolve OpenCOAT monorepo (`OPENCOAT_ROOT`)
-
-Agents must **not** ask the human for the repo path. Resolve in shell (first hit wins):
-
-```bash
-OPENCOAT_ROOT="${OPENCOAT_REPO:-}"
-if [[ -z "$OPENCOAT_ROOT" ]]; then
-  for d in "$(pwd)" "$(pwd)/OpenCOAT" "$HOME/OpenCOAT" "$HOME/COAT" "${OPENCOAT_WORKSPACE:-$(pwd)}/.opencoat/OpenCOAT"; do
-    [[ -f "$d/integrations/openclaw-opencoat-bridge/package.json" ]] && OPENCOAT_ROOT="$(cd "$d" && pwd)" && break
-  done
-fi
-if [[ -z "$OPENCOAT_ROOT" ]] && { command -v openclaw >/dev/null || [[ -d "${HOME}/.openclaw" ]]; }; then
-  WORK="${OPENCOAT_WORKSPACE:-$(pwd)}"
-  OPENCOAT_ROOT="$WORK/.opencoat/OpenCOAT"
-  if [[ ! -f "$OPENCOAT_ROOT/integrations/openclaw-opencoat-bridge/package.json" ]]; then
-    mkdir -p "$(dirname "$OPENCOAT_ROOT")"
-    git clone --depth 1 https://github.com/HyperdustLabs/OpenCOAT.git "$OPENCOAT_ROOT"
-  fi
-fi
-echo "OPENCOAT_ROOT=${OPENCOAT_ROOT:-<unset>}"
-```
-
-Use `$OPENCOAT_ROOT` for Step 1c (editable pipx), Step 5 (bridge), and
-`bash "$OPENCOAT_ROOT/integrations/openclaw-opencoat-bridge/scripts/install-local.sh"`.
-
 ### Step 2 — start the daemon + OS autostart (long-running, persistent)
 
 The bundled daemon defaults (current `opencoat-runtime`) enable HTTP JSON-RPC
@@ -312,7 +273,7 @@ ships in **`opencoat-runtime` 0.1.2+**. If `opencoat service` is missing
 (unknown subcommand / parser error), upgrade the CLI env:
 
 ```bash
-pip install -U 'opencoat-runtime>=0.1.5' 'opencoat-runtime-host>=0.1.5'
+pip install -U 'opencoat-runtime>=0.1.4' 'opencoat-runtime-host>=0.1.4'
 # pipx:
 pipx upgrade opencoat-runtime && pipx inject opencoat-runtime opencoat-runtime-host
 ```
@@ -425,49 +386,8 @@ The two pickup points to remember:
 
 ### Step 5 — OpenClaw gateway bridge (**required when OpenClaw is present**)
 
-For the **real OpenClaw gateway** (`openclaw tui`, Telegram, …). **Run this
-automatically** after Step 4 when `command -v openclaw` or `~/.openclaw` exists —
-do **not** ask “if you want” or “if you have the repo path”. Resolve `OPENCOAT_ROOT`
-(**Resolve OpenCOAT monorepo** above), then install the **TypeScript plugin** from
-the monorepo — not on ClawHub, not on PyPI.
-
-**Skill files vs bridge (common confusion).** The canonical prompt means **fetch
-this doc and run Quick start + Step 5** — not “copy SKILL.md into OpenClaw first”.
-Gateway weaving uses the **bridge plugin** under `~/.openclaw/extensions/`, not a
-`workspace/skills/opencoat/` folder. If `<OpenCOAT>…</OpenCOAT>` appears in chat but
-the agent says “no opencoat skill installed”, that is normal: concerns are active via
-the plugin + daemon. Report install health with the shell checks below, not by
-listing the skills directory.
-
-Prerequisites: daemon up (Step 2), concerns in store (Step 3 or `concern extract`),
-OpenClaw **≥ 2026.3.24**, `OPENCOAT_ROOT` resolved (clone to workspace `.opencoat/OpenCOAT`
-if needed).
-
-```bash
-command -v openclaw >/dev/null || [[ -d "${HOME}/.openclaw" ]] || { echo "skip Step 5: no OpenClaw"; exit 0; }
-
-# OPENCOAT_ROOT — use resolver block from "Resolve OpenCOAT monorepo" (set OPENCOAT_REPO to skip search)
-: "${OPENCOAT_ROOT:?set OPENCOAT_ROOT first — see Resolve OpenCOAT monorepo}"
-
-BRIDGE="$OPENCOAT_ROOT/integrations/openclaw-opencoat-bridge"
-bash "$BRIDGE/scripts/install-local.sh"
-openclaw plugins install -l "$BRIDGE"
-openclaw gateway restart
-openclaw plugins list   # @hyperdustlabs/opencoat-bridge → loaded
-grep opencoat-bridge ~/.openclaw/logs/gateway.log | tail -5   # [opencoat-bridge] registered
-```
-
-In `~/.openclaw/openclaw.json`, enable `@hyperdustlabs/opencoat-bridge` with
-`hooks.allowPromptInjection: true` and `config.daemonUrl`:
-`http://127.0.0.1:7878/rpc`. Config id uses a **slash**; symlink dir is flat
-(`~/.openclaw/extensions/@hyperdustlabs-opencoat-bridge`). Remove legacy
-`@hyperdust/*` plugin entries. Set `daemonUrl` in
-plugin config only (OpenClaw install blocks `process.env` + network in plugins).
-
-Hooks: `message_received`→`on_user_input`, `before_prompt_build`→`before_response`,
-`before_tool_call`, `session_start`→`runtime_start`. After chat, expect
-`jp-oc-*` in `opencoat dcn activation-log`. Monorepo README:
-`integrations/openclaw-opencoat-bridge/README.md`.
+When `openclaw` or `~/.openclaw` exists, run Step 5 **automatically** after Step 4.
+Full resolver, install commands, and config: **[openclaw-bridge.md](openclaw-bridge.md)**.
 
 ### Step 6 — inspect and keep running
 
@@ -487,133 +407,26 @@ Sample activation log after `demo_host.py` (run locally for full rows):
 2026-05-13T08:39:35  demo-memory-tag   …  score=0.675
 ```
 
-For a graph view:
-
-```bash
-opencoat dcn export --format dot -o dcn.dot
-dot -Tsvg dcn.dot -o dcn.svg && open dcn.svg
-```
-
-`opencoat runtime up` double-forked the daemon at Step 2, so it stays
-alive after this terminal closes. **Leave it running** between host-agent
-sessions — that's the whole point: concerns and the DCN activation log
-persist in `~/.opencoat/*.sqlite` so the next conversation picks up where
-this one stopped.
-
-If you really do want to stop it (e.g. freeing port 7878):
-
-```bash
-opencoat service stop        # unload LaunchAgent / systemd user unit (keeps files)
-opencoat runtime down        # default pid file ~/.opencoat/opencoat.pid
-deactivate                   # leave the venv (Step 1b only)
-```
-
-To remove autostart entirely: `opencoat service uninstall`.
-
-The PID file is unlinked on a clean exit; if the daemon was
-`SIGKILL`'d, delete it manually.
+`opencoat runtime up` double-forks at Step 2 — **leave the daemon running** between
+sessions. Stop/uninstall: [inspection.md](inspection.md).
 
 ---
 
-## What "Concern" means here
+## Concerns, scope, versions, troubleshooting
 
-A Concern is the only first-class unit OpenCOAT understands. Every
-concern carries:
+- Authoring: [concerns.md](concerns.md) · Safety: [rules.md](rules.md)
+- PyPI versions: [compatibility.md](compatibility.md) (skill tracks **0.1.4+**; **0.1.5** when published)
+- OpenCOAT repo edits: [contributing.md](contributing.md)
+- Problems: [troubleshooting.md](troubleshooting.md)
 
-| field | role |
-| --- | --- |
-| `id` / `name` / `description` | identity + human label |
-| `pointcut` | which joinpoints this concern listens on (+ optional keyword / vector match) |
-| `advice` | what to inject when the pointcut fires (`PROMPT_PREFIX`, `TOOL_GUARD`, `MEMORY_WRITE_GUARD`, `RESPONSE_REQUIREMENT`, …) |
-| `weaving_policy` | where in the host's COPR to weave (`PROMPT_LEVEL` / `TOOL_LEVEL` / `MEMORY_LEVEL` / `OUTPUT_LEVEL`) and how (`INSERT` / `BLOCK` / `ANNOTATE` / `REPLACE`) |
-| `lifecycle_state` | `active` / `pending` / `archived` (driven by the runtime, not by hand) |
-
-Authoring patterns and a recipe gallery live in [concerns.md](concerns.md);
-safety rules around `TOOL_GUARD` and `MEMORY_WRITE_GUARD` live in
-[rules.md](rules.md).
-
----
-
-## When to apply this skill
-
-Use this skill when **any** of these are true:
-
-- The user asks to "install OpenCOAT" / "set up the OpenCOAT runtime"
-  / "wire concerns into my agent" / **enable daemon autostart** /
-  **login or boot persistence** / **fix stub LLM** / **configure API keys
-  without pasting them in chat**.
-- The user wants a quick reproducible demo of joinpoint / pointcut /
-  advice / weaving on top of an existing host agent.
-- The user references a `concern.upsert` failure, a missing
-  `bootstrap_opencoat.install()` call, or a daemon that won't start
-  on `127.0.0.1:7878`.
-- The user asks how to add their own concern, edit a pointcut, or
-  visualise the Deep Concern Network.
-
-Do **not** use this skill for:
-
-- Generic "agent design" or "prompt engineering" questions unrelated
-  to OpenCOAT.
-- Collecting or troubleshooting **raw secrets** inside the agent chat
-  — redirect to `opencoat configure llm` / local shell instead (see
-  [rules.md](rules.md) Rule 8).
-- Issues in the upstream `opencoat-runtime-*` Python packages
-  themselves — file those at
-  <https://github.com/HyperdustLabs/OpenCOAT/issues>.
-
----
-
-## Compatibility & versions
-
-This skill tracks `opencoat-runtime` major. **Current PyPI:** `0.1.5`
-(M6 heartbeat workers, joinpoint model ADR-0011 + OpenClaw bridge runtime observers,
-26 plugin hooks, AspectJ concerns, B.AI LLM). OpenClaw **gateway** weave uses the TS
-bridge in the
-[OpenCOAT monorepo](https://github.com/HyperdustLabs/OpenCOAT/tree/main/integrations/openclaw-opencoat-bridge)
-(Step 5; live verification checklist §3), not the runtime wheel alone.
-
-| component | min supported | source |
-| --- | --- | --- |
-| `opencoat-runtime` | `0.1.5` | [PyPI](https://pypi.org/project/opencoat-runtime/) |
-| `opencoat-runtime-host` | `0.1.5` | [PyPI](https://pypi.org/project/opencoat-runtime-host/) |
-| `opencoat-runtime-protocol` | `0.1.5` | [PyPI](https://pypi.org/project/opencoat-runtime-protocol/) — pulled transitively |
-
-Step 1 installs from PyPI via `pipx`; if you need to embed the runtime
-inside a Python application (so its code can `import
-opencoat_runtime_host_sdk`), Step 1b uses `pip install` into a regular
-venv. Both paths give the same CLI surface.
-
----
-
-## Troubleshooting (one-liners)
-
-| symptom | likely fix |
-| --- | --- |
-| `opencoat runtime up` hangs | port 7878 in use → pass `--port 17890` (or another) and re-run `status` with the same flag |
-| `opencoat: command not found` | pipx env not on `PATH` → `pipx ensurepath` then reopen the shell, or fall back to Step 1b's venv |
-| `opencoat demo` raises `ModuleNotFoundError: opencoat_runtime_host_sdk` | `pipx inject opencoat-runtime opencoat-runtime-host` was skipped — re-run that command |
-| `opencoat concern extract` returns `0 candidate(s)` and the banner shows `llm: stub-fallback (degraded — …)` | follow **LLM credentials check** — `opencoat configure llm` in a **local terminal** (never paste keys into chat); restart daemon / service |
-| `Client.connect(…)` raises `HostTransportConnectionError` | daemon down or bound on another port; `opencoat runtime status` is the truth |
-| `concern.upsert` returns `ValidationError` | concern JSON missing `pointcut.joinpoints` or unknown `AdviceType` — see [concerns.md](concerns.md) |
-| OpenClaw chat: no weave / `plugin not found` | Step **5**: resolve `OPENCOAT_ROOT`, `install-local.sh`, gateway restart; id `@hyperdustlabs/opencoat-bridge` |
-| OpenCOAT blocks in chat but agent says “no skill” | Weaving = bridge plugin (Step 5), not `workspace/skills/opencoat`; run `opencoat --version`, `runtime status`, `grep opencoat-bridge …/gateway.log` |
-| Custom Python `subscribe()` host | `$OPENCOAT_ROOT/examples/04_openclaw_with_runtime` or `opencoat demo --script-out` — see [concerns.md](concerns.md) |
-| daemon refuses to start because PID file exists | stale PID → `rm ~/.opencoat/opencoat.pid && opencoat runtime up …` |
-| `opencoat service install` fails on Linux (bind / address already in use) | A daemon from `runtime up` is still holding 7878 — `opencoat runtime down` then re-run `service install` (the bundled `bootstrap_daemon.sh` does this). |
-| `opencoat service install` fails on Linux (other) | ensure `systemctl --user` exists; for boot-without-login run `loginctl enable-linger "$USER"` once |
-| `opencoat service install` skipped in CI | intentional — only run on a real macOS / Linux user desktop or server |
-
-Anything else: `opencoat inspect joinpoints` and
-`opencoat inspect pointcuts` are dependency-free and confirm the
-catalogs the runtime is actually using.
+Use this skill for install/demo/OpenClaw bridge/DCN inspection — not generic prompt
+engineering or secrets in chat ([rules.md](rules.md)). Runtime bugs:
+<https://github.com/HyperdustLabs/OpenCOAT/issues>.
 
 ---
 
 ## Related files in this skill
 
-- [inspection.md](inspection.md) — every read-only command (`concern`,
-  `dcn`, `inspect`, `replay`).
-- [concerns.md](concerns.md) — authoring patterns + a recipe gallery
-  (the 3 demo concerns + 4 useful starters).
-- [rules.md](rules.md) — safety rules the host agent must respect
-  when OpenCOAT injects `TOOL_GUARD` / `MEMORY_WRITE_GUARD` advice.
+- [inspection.md](inspection.md) — `concern`, `dcn`, `inspect`, `replay`
+- [openclaw-bridge.md](openclaw-bridge.md) — Step 5 install + `OPENCOAT_ROOT`
+- [compatibility.md](compatibility.md) · [contributing.md](contributing.md) · [troubleshooting.md](troubleshooting.md)

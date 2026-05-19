@@ -76,7 +76,16 @@ jobs:
           import os, re, sys
           rx = re.compile(r"\]\(([^)#]+?)(?:#[^)]*)?\)")
           bad = []
-          for path in ("SKILL.md", "inspection.md", "concerns.md", "rules.md"):
+          for path in (
+              "SKILL.md",
+              "inspection.md",
+              "concerns.md",
+              "rules.md",
+              "contributing.md",
+              "compatibility.md",
+              "openclaw-bridge.md",
+              "troubleshooting.md",
+          ):
               src = open(path).read()
               for target in rx.findall(src):
                   if target.startswith(("http://", "https://", "mailto:")):

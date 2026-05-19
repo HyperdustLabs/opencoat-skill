@@ -26,12 +26,16 @@
     "inspection.md",
     "concerns.md",
     "rules.md",
+    "contributing.md",
+    "compatibility.md",
+    "openclaw-bridge.md",
+    "troubleshooting.md",
     "bootstrap_daemon.sh"
   ],
   "compatible_with": {
-    "opencoat-runtime": ">=0.1.5",
-    "opencoat-runtime-host": ">=0.1.5",
-    "opencoat-runtime-protocol": ">=0.1.5"
+    "opencoat-runtime": ">=0.1.4",
+    "opencoat-runtime-host": ">=0.1.4",
+    "opencoat-runtime-protocol": ">=0.1.4"
   },
   "tracks": "opencoat-runtime@major"
 }
