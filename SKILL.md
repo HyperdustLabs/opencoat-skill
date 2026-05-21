@@ -15,9 +15,6 @@ files:
 
 ```text
 Read https://www.opencoat.ai/SKILL.md to install and use OpenCOAT.
-You MUST use shell and run every Quick start step; do not only print commands.
-If OpenClaw is installed, auto-install the gateway bridge (Step 5) — resolve the
-monorepo path yourself; do not ask me for it or wait for "go ahead".
 ```
 
 (URL-only also binds via **Agent contract** below, but hosts that only read the
